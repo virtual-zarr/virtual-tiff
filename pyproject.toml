@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "why-virtualize-geotiff"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Max Jones", email = "14077947+maxrjones@users.noreply.github.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "earthaccess",
+    "xarray",
+    "zarr",
+    "rioxarray",
+    "rasterio",
+]
+
+[project.urls]
+Issues = "https://github.com/maxrjones/why-virtualize-geotiff/issues"
+Source = "https://github.com/maxrjones/why-virtualize-geotiff"
+
+[tool.coverage.run]
+source_pkgs = [""]
+branch = true
+parallel = true
+omit = []
