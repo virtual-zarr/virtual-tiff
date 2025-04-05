@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from virtual_tiff.constants import SAMPLE_DTYPES
 import dataclasses
 import math
 from typing import (
@@ -24,21 +25,13 @@ if TYPE_CHECKING:
     from obstore.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
     from zarr.core.abc.store import Store
 
-    SupportedStore = AzureStore | GCSStore | HTTPStore | S3Store | LocalStore
-
 
 import numpy as np
+
+
 @dataclasses.dataclass
 class ZlibProperties:
     level: int
-
-def _get_dtype(sample_format, bits_per_sample):
-    if sample_format[0] == 1 and bits_per_sample[0] == 16:
-        return np.dtype(np.uint16)
-    elif bits_per_sample[0] == 64:  # TODO: Check if sample_format matters here
-        return np.dtype(np.float64)
-    else:
-        raise NotImplementedError
 
 
 def _get_codecs(compression):
@@ -62,9 +55,7 @@ def _construct_chunk_manifest(
     tile_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
     # See https://web.archive.org/web/20240329145228/https://www.awaresystems.be/imaging/tiff/tifftags/tileoffsets.html for ordering of offsets.
     tile_offsets = np.array(ifd.tile_offsets, dtype=np.uint64).reshape(tile_shape)
-    tile_counts = np.array(ifd.tile_byte_counts, dtype=np.uint64).reshape(
-        tile_shape
-    )
+    tile_counts = np.array(ifd.tile_byte_counts, dtype=np.uint64).reshape(tile_shape)
     paths = np.full_like(tile_offsets, path, dtype=np.dtypes.StringDType)
     return ChunkManifest.from_arrays(
         paths=paths,
@@ -72,14 +63,16 @@ def _construct_chunk_manifest(
         lengths=tile_counts,
     )
 
-async def _open_tiff(*, path: str, store: SupportedStore) -> TIFF:
+
+async def _open_tiff(
+    *, path: str, store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore
+) -> TIFF:
     from async_tiff import TIFF
 
     return await TIFF.open(path, store=store)
 
-def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, path: str
-) -> ManifestArray:
+
+def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
     if not ifd.tile_height or not ifd.tile_width:
         raise NotImplementedError(
             f"TIFF reader currently only supports tiled TIFFs, but {path} has no internal tiling."
@@ -93,13 +86,14 @@ def _construct_manifest_array(
     codec_configs = [
         numcodec_config_to_configurable(codec.get_config()) for codec in codecs
     ]
-    dimension_names = ("y", "x")  # Folllowing rioxarray's behavior
+    dimension_names = ("y", "x")  # Following rioxarray's behavior
+    dtype = np.dtype(
+        SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
+    )
 
     metadata = create_v3_array_metadata(
         shape=shape,
-        data_type=_get_dtype(
-            sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
-        ),
+        data_type=dtype,
         chunk_shape=chunks,
         fill_value=None,  # TODO: Fix fill value
         codecs=codec_configs,
@@ -107,8 +101,9 @@ def _construct_manifest_array(
     )
     return ManifestArray(metadata=metadata, chunkmanifest=chunk_manifest)
 
+
 def _construct_manifest_group(
-    store: SupportedStore,
+    store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore,
     path: str,
     *,
     group: str | None = None,
@@ -126,16 +121,15 @@ def _construct_manifest_group(
         )
     else:
         for ind, ifd in enumerate(tiff.ifds):
-            manifest_arrays[str(ind)] = (
-                _construct_manifest_array(ifd=ifd, path=path)
-            )
+            manifest_arrays[str(ind)] = _construct_manifest_array(ifd=ifd, path=path)
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
+
 
 def create_manifest_store(
     filepath: str,
     group: str,
     file_id: str,
-    object_store: SupportedStore,
+    object_store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore,
 ) -> Store:
     # TODO: Make this less sketchy, but it's better to use an AsyncTIFF store rather than an obstore store
     from async_tiff.store import LocalStore as ATStore
@@ -149,4 +143,3 @@ def create_manifest_store(
     )
     # Convert to a manifest store
     return ManifestStore(stores={file_id: object_store}, group=manifest_group)
-
