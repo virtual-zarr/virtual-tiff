@@ -30,9 +30,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "zarr",
     "obstore",
     "async_tiff",
+    "virtualizarr",
 ]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
@@ -49,6 +49,7 @@ docs = [
 ]
 dev = [
   "codecov",
+  "netcdf4",
   "mypy",
   "pandas-stubs",
   "pooch",
@@ -75,7 +76,7 @@ parallel = true
 omit = []
 
 [tool.uv.sources]
-virtualize = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
+virtualizarr = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
 obstore = { git = "https://github.com/developmentseed/obstore", subdirectory="obstore", rev = "848e7c99972f9e13c185dd1f84b1194f5621015f" }
 async_tiff = { git = "https://github.com/developmentseed/async-tiff", subdirectory="python", rev = "c720f01235ea706d8fb926909eb68409e07149ed" }
 

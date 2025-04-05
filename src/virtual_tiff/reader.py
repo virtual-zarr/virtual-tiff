@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
 
 import numpy as np
-
-from virtualizarr.readers.common import (
-    ZlibProperties,
-)
+@dataclasses.dataclass
+class ZlibProperties:
+    level: int
 
 def _get_dtype(sample_format, bits_per_sample):
     if sample_format[0] == 1 and bits_per_sample[0] == 16:
@@ -108,7 +107,6 @@ def _construct_manifest_array(
     )
     return ManifestArray(metadata=metadata, chunkmanifest=chunk_manifest)
 
-@staticmethod
 def _construct_manifest_group(
     store: SupportedStore,
     path: str,
@@ -133,8 +131,7 @@ def _construct_manifest_group(
             )
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
-@staticmethod
-def _create_manifest_store(
+def create_manifest_store(
     filepath: str,
     group: str,
     file_id: str,
