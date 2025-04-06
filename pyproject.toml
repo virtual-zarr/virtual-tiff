@@ -33,6 +33,8 @@ dependencies = [
     "obstore",
     "async_tiff",
     "virtualizarr",
+    "imagecodecs",
+    "imagecodecs-numcodecs",
 ]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
