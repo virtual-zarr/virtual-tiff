@@ -72,7 +72,7 @@ def download_files():
     # download 4 GB file from https://github.com/zarr-developers/VirtualiZarr/issues/526#issuecomment-2773732236
     pooch.retrieve(
         "https://projects.pawsey.org.au/idea-gebco-tif/GEBCO_2024.tif",
-        None,
+        "9992b941b3f1e2ecd39b4d79b96abd1b06c65a070d38c065312e4f3e80026cc3",
         path=f"{outpath}/xlarge_files/",
         fname="GEBCO_2024.tif",
     )
