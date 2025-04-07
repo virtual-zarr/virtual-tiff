@@ -4,10 +4,8 @@ from virtual_tiff.constants import SAMPLE_DTYPES
 import math
 from typing import TYPE_CHECKING, Any, Iterable
 
-import numcodecs.registry as registry
 from zarr.core.sync import sync
 
-from virtualizarr.codecs import numcodec_config_to_configurable
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -29,17 +27,17 @@ def _get_compression(ifd, compression):
     if compression in (2, 3, 4):
         raise NotImplementedError("CCITT compression is not yet supported")
     elif compression == 5:
-        raise NotImplementedError("LZW compression is not yet supported")
+        return dict(name="imagecodecs_lzw")
     elif compression in (6, 7):  # 6 is old style, 7 in new style
         raise NotImplementedError("JPEG compression is not yet supported")
-    elif compression == 8:  # Dellate (zlib), Adobe fariant
-        return registry.get_codec(dict(id="zlib", level=6))
+    elif compression == 8:  # Deflate (zlib), Adobe variant
+        return dict(name="imagecodecs_deflate")
     elif compression == 32773:
         return NotImplementedError("Packbits compression is not yet supported")
     elif compression == 50000:
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
         level = ifd.other_tags.get("65564", 9)
-        return registry.get_codec(dict(id="zstd", level=level))
+        return dict(name="imagecodecs_zstd", level=level)
     else:
         raise ValueError(f"Compression {compression} not recognized")
 
@@ -78,6 +76,7 @@ async def _open_tiff(
 
 def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
     shape = (ifd.image_height, ifd.image_width)
+
     try:
         dtype = np.dtype(
             SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
@@ -103,23 +102,28 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     )
     codecs = []
     if ifd.predictor == 2:
-        codecs.append(registry.get_codec(dict(id="imagecodecs_delta", dtype=dtype.str)))
+        codec = dict(name="imagecodecs_delta", dtype=dtype.str)
+        codecs.append(codec)
+    elif ifd.predictor == 3:
+        codec = dict(name="imagecodecs_floatpred", dtype=dtype.str, shape=chunks)
+        codecs.append(codec)
     compression = ifd.compression
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
-
-    codec_configs = [
-        numcodec_config_to_configurable(codec.get_config()) for codec in codecs
-    ]
+    # # Use CF style fill value for GDAL fill value
+    # gdal_fill_value = ifd.other_tags.get(42113, None)
+    # if gdal_fill_value:
+    #     attributes["_FillValue"] = FillValueCoder.encode(gdal_fill_value, dtype)
     dimension_names = ("y", "x")  # Following rioxarray's behavior
 
     metadata = create_v3_array_metadata(
         shape=shape,
         data_type=dtype,
         chunk_shape=chunks,
-        fill_value=None,  # TODO: Fix fill value
-        codecs=codec_configs,
+        fill_value=None,
+        codecs=codecs,
         dimension_names=dimension_names,
+        attributes=None,
     )
     return ManifestArray(metadata=metadata, chunkmanifest=chunk_manifest)
 

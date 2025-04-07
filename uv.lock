@@ -2936,6 +2936,7 @@ dependencies = [
     { name = "imagecodecs-numcodecs" },
     { name = "obstore" },
     { name = "virtualizarr" },
+    { name = "zarr" },
 ]
 
 [package.dev-dependencies]
@@ -2978,6 +2979,7 @@ requires-dist = [
     { name = "imagecodecs-numcodecs" },
     { name = "obstore", git = "https://github.com/developmentseed/obstore?subdirectory=obstore&rev=848e7c99972f9e13c185dd1f84b1194f5621015f" },
     { name = "virtualizarr", git = "https://github.com/zarr-developers/VirtualiZarr.git" },
+    { name = "zarr", git = "https://github.com/maxrjones/zarr-python?rev=41ad842768a754dbb80c30d8486b40970d0bc74c" },
 ]
 
 [package.metadata.requires-dev]
@@ -3029,8 +3031,8 @@ wheels = [
 
 [[package]]
 name = "virtualizarr"
-version = "1.3.3.dev32+ge707375"
-source = { git = "https://github.com/zarr-developers/VirtualiZarr.git#e7073750a82105672a7262bcba5871c499284e7f" }
+version = "1.3.3.dev33+gb5d2587"
+source = { git = "https://github.com/zarr-developers/VirtualiZarr.git#b5d2587b5c629623da8da0f6c5a420cc4f322bc5" }
 dependencies = [
     { name = "numcodecs" },
     { name = "numpy" },
@@ -3281,18 +3283,14 @@ wheels = [
 
 [[package]]
 name = "zarr"
-version = "3.0.6"
-source = { registry = "https://pypi.org/simple" }
+version = "3.0.7.dev9+g41ad8427"
+source = { git = "https://github.com/maxrjones/zarr-python?rev=41ad842768a754dbb80c30d8486b40970d0bc74c#41ad842768a754dbb80c30d8486b40970d0bc74c" }
 dependencies = [
     { name = "donfig" },
     { name = "numcodecs", extra = ["crc32c"] },
     { name = "numpy" },
     { name = "packaging" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/bf/2820e8ad5f086ea5cd4c4d65eb5e0113f98145ddf5810cec1c75fb10fb98/zarr-3.0.6.tar.gz", hash = "sha256:6ef23c740e34917a2a1099471361537732942e49f0cabe95c9b7124cd0d6d84f", size = 240812 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/38/56a1c129577d20dc975a934ccc3f7f16276eab04ff0ffbe02ea348407a37/zarr-3.0.6-py3-none-any.whl", hash = "sha256:dba078726b6e4defb0ae6a852b7e7035ce163d89d485961681ece49191dcce82", size = 196357 },
 ]
 
 [[package]]
