@@ -3,15 +3,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, replace
-from functools import cached_property, partial
+from functools import cached_property
 from typing import Self, TypeVar
 from warnings import warn
-from collections.abc import Callable
 
 import numpy as np
 
 import numcodecs
-import imagecodecs
 from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
 from zarr.core.array_spec import ArraySpec
 from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer
@@ -19,6 +17,10 @@ from zarr.core.buffer.cpu import as_numpy_array_wrapper
 from zarr.core.common import JSON, parse_named_configuration
 
 CODEC_PREFIX = "imagecodecs."
+_imagecodecs_numcodecs = {
+    "lzw": {"id": "imagecodecs_lzw"},
+    "delta": {"id": "imagecodecs_delta"},
+}
 
 
 def _expect_name_prefix(codec_name: str) -> str:
@@ -67,7 +69,7 @@ class _NumcodecsCodec:
 
     @cached_property
     def _codec(self) -> numcodecs.abc.Codec:
-        return imagecodecs.get_codec(self.codec_config)
+        return numcodecs.get_codec(_imagecodecs_numcodecs[self.codec_config["id"]])
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
@@ -169,10 +171,6 @@ def _add_docstring(cls: type[T], ref_class_name: str) -> type[T]:
         See :class:`{ref_class_name}` for more details and parameters.
         """
     return cls
-
-
-def _add_docstring_wrapper(ref_class_name: str) -> Callable[[type[T]], type[T]]:
-    return partial(_add_docstring, ref_class_name=ref_class_name)
 
 
 def _make_bytes_bytes_codec(

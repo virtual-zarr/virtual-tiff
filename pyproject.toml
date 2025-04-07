@@ -35,6 +35,7 @@ dependencies = [
     "virtualizarr",
     "imagecodecs",
     "imagecodecs-numcodecs",
+    "zarr",
 ]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
@@ -81,6 +82,7 @@ omit = []
 virtualizarr = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
 obstore = { git = "https://github.com/developmentseed/obstore", subdirectory="obstore", rev = "848e7c99972f9e13c185dd1f84b1194f5621015f" }
 async_tiff = { git = "https://github.com/developmentseed/async-tiff", subdirectory="python", rev = "c720f01235ea706d8fb926909eb68409e07149ed" }
+zarr = { git = "https://github.com/maxrjones/zarr-python", rev ="41ad842768a754dbb80c30d8486b40970d0bc74c" }
 
 [tool.hatch.version]
 source = "vcs"
