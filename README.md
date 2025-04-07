@@ -23,6 +23,11 @@ First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
 2. Setup virtual env using uv: `uv sync`
 3. Start a shell in the virtual environment: `uv run --all-groups zsh` (all-groups includes all the development dependencies in the virtual environment)
 
+Optionally:
+
+- Download all test files using `uv run --all-groups python tests/conftest.py`
+- Run the test suite using `uv run --all-groups pytest` WARNING: Many will fail due to incomplete status of the implementation
+
 ## License
 
 `virtual-tiff` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
