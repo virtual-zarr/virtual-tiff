@@ -16,13 +16,7 @@ from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer
 from zarr.core.buffer.cpu import as_numpy_array_wrapper
 from zarr.core.common import JSON, parse_named_configuration
 
-CODEC_PREFIX = "imagecodecs."
-_imagecodecs_numcodecs = {
-    "lzw": {"id": "imagecodecs_lzw"},
-    "delta": {"id": "imagecodecs_delta"},
-    "deflate": {"id": "imagecodecs_deflate"},
-    "zstd": {"id": "imagecodecs_zstd"},
-}
+CODEC_PREFIX = "imagecodecs_"
 
 
 def _expect_name_prefix(codec_name: str) -> str:
@@ -64,19 +58,21 @@ class _ImageCodecsCodec:
 
         object.__setattr__(self, "codec_config", codec_config)
         warn(
-            "Numcodecs codecs are not in the Zarr version 3 specification and "
+            "Imagecodecs codecs are not in the Zarr version 3 specification and "
             "may not be supported by other zarr implementations.",
             category=UserWarning,
         )
 
     @cached_property
     def _codec(self) -> numcodecs.abc.Codec:
-        return numcodecs.get_codec(_imagecodecs_numcodecs[self.codec_config["id"]])
+        codec_config = self.codec_config["configuration"]
+        codec_config["id"] = self.codec_config["name"]
+        codec_config.pop("name")
+        return numcodecs.get_codec(codec_config)
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        codec_config = _parse_codec_configuration(data)
-        return cls(**codec_config)
+        return cls(**data)
 
     def to_dict(self) -> JSON:
         codec_config = self.codec_config.copy()
@@ -165,6 +161,18 @@ class Delta(_ImageCodecsArrayArrayCodec):
         return chunk_spec
 
 
+class FloatPred(_ImageCodecsArrayArrayCodec):
+    codec_name = f"{CODEC_PREFIX}floatpred"
+
+    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+        super().__init__(**codec_config)
+
+    def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
+        if astype := self.codec_config.get("astype"):
+            return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
+        return chunk_spec
+
+
 T = TypeVar("T", bound=_ImageCodecsCodec)
 
 
@@ -229,4 +237,4 @@ Deflate = _add_docstring(
 )
 Zstd = _add_docstring(_make_bytes_bytes_codec("zstd", "Zstd"), "imagecodecs.zstd")
 
-__all__ = ["Delta", "LZW", "Zstd", "Deflate"]
+__all__ = ["Delta", "LZW", "Zstd", "Deflate", "FloatPred"]
