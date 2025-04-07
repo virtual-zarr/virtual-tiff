@@ -1,9 +1,13 @@
 [build-system]
-requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+requires = [
+  "hatch-vcs",
+  "hatchling",
+]
+
 [project]
-name = "why-virtualize-geotiff"
+name = "virtual_tiff"
 dynamic = ["version"]
 description = ''
 readme = "README.md"
@@ -24,20 +28,64 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
 dependencies = [
-    "earthaccess",
-    "xarray",
-    "zarr",
-    "rioxarray",
-    "rasterio",
+    "obstore",
+    "async_tiff",
+    "virtualizarr",
+    "imagecodecs",
+    "imagecodecs-numcodecs",
 ]
 
-[project.urls]
-Issues = "https://github.com/maxrjones/why-virtualize-geotiff/issues"
-Source = "https://github.com/maxrjones/why-virtualize-geotiff"
+# Dependency sets under dependencies-groups are NOT available via PyPI
+[dependency-groups]
+docs = [
+  "sphinx",
+  "myst_nb",
+  "pydata_sphinx_theme",
+  "sphinx_copybutton",
+  "sphinx_design",
+  "sphinx_togglebutton",
+  "sphinx-autobuild>=2021.3.14",
+  "sphinx-autodoc-typehints",
+]
+dev = [
+  "codecov",
+  "netcdf4",
+  "mypy",
+  "pandas-stubs",
+  "pooch",
+  "pre-commit",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-mypy",
+  "pytest-xdist",
+  "ruff",
+  "s3fs",
+  "lithops",
+  "dask",
+  "rioxarray",
+  "rasterio",
+  "earthaccess",
+  "xarray",
+]
 
 [tool.coverage.run]
 source_pkgs = [""]
 branch = true
 parallel = true
 omit = []
+
+[tool.uv.sources]
+virtualizarr = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
+obstore = { git = "https://github.com/developmentseed/obstore", subdirectory="obstore", rev = "848e7c99972f9e13c185dd1f84b1194f5621015f" }
+async_tiff = { git = "https://github.com/developmentseed/async-tiff", subdirectory="python", rev = "c720f01235ea706d8fb926909eb68409e07149ed" }
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src/virtual_tiff",
+]
