@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from virtual_tiff.constants import SAMPLE_DTYPES
-import dataclasses
 import math
 from typing import (
     TYPE_CHECKING,
@@ -25,24 +24,26 @@ if TYPE_CHECKING:
     from obstore.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
     from zarr.core.abc.store import Store
 
-
 import numpy as np
 
 
-@dataclasses.dataclass
-class ZlibProperties:
-    level: int
-
-
-def _get_codecs(compression):
-    if compression == 8:  # Adobe DEFLATE
-        zlib_props = ZlibProperties(level=6)  # type: ignore
-        conf = dataclasses.asdict(zlib_props)
-        conf["id"] = "zlib"
+def _get_compression(ifd, compression):
+    if compression in (2, 3, 4):
+        raise NotImplementedError("CCITT compression is not yet supported")
+    elif compression == 5:
+        raise NotImplementedError("LZW compression is not yet supported")
+    elif compression in (6, 7):  # 6 is old style, 7 in new style
+        raise NotImplementedError("JPEG compression is not yet supported")
+    elif compression == 8:  # Dellate (zlib), Adobe fariant
+        return registry.get_codec(dict(id="zlib", level=6))
+    elif compression == 32773:
+        return NotImplementedError("Packbits compression is not yet supported")
+    elif compression == 50000:
+        # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
+        level = ifd.other_tags.get("65564", 9)
+        return registry.get_codec(dict(id="zstd", level=level))
     else:
-        raise NotImplementedError
-    codec = registry.get_codec(conf)
-    return codec
+        raise ValueError(f"Compression {compression} not recognized")
 
 
 def _construct_chunk_manifest(
@@ -79,17 +80,23 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         )
     chunks = (ifd.tile_height, ifd.tile_height)
     shape = (ifd.image_height, ifd.image_width)
+    dtype = np.dtype(
+        SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
+    )
     chunk_manifest = _construct_chunk_manifest(
         ifd, path=path, shape=shape, chunks=chunks
     )
-    codecs = [_get_codecs(ifd.compression)]
+    codecs = []
+    if ifd.predictor == 2:
+        codecs.append(registry.get_codec(dict(id="imagecodecs_delta", dtype=dtype.str)))
+    compression = ifd.compression
+    if compression > 1:
+        codecs.append(_get_compression(ifd, compression))
+
     codec_configs = [
         numcodec_config_to_configurable(codec.get_config()) for codec in codecs
     ]
     dimension_names = ("y", "x")  # Following rioxarray's behavior
-    dtype = np.dtype(
-        SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
-    )
 
     metadata = create_v3_array_metadata(
         shape=shape,
