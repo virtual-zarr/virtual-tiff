@@ -31,13 +31,13 @@ def _get_compression(ifd, compression):
     elif compression in (6, 7):  # 6 is old style, 7 in new style
         raise NotImplementedError("JPEG compression is not yet supported")
     elif compression == 8:  # Deflate (zlib), Adobe variant
-        return dict(name="numcodecs.zlib", configuration={"level": 6})
+        return dict(name="imagecodecs.deflate", configuration={})
     elif compression == 32773:
         return NotImplementedError("Packbits compression is not yet supported")
     elif compression == 50000:
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
         level = ifd.other_tags.get("65564", 9)
-        return dict(name="numcodecs.zstd", configuration={"level": level})
+        return dict(name="imagecodecs.zstd", configuration={"level": level})
     else:
         raise ValueError(f"Compression {compression} not recognized")
 

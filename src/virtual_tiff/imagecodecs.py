@@ -20,6 +20,8 @@ CODEC_PREFIX = "imagecodecs."
 _imagecodecs_numcodecs = {
     "lzw": {"id": "imagecodecs_lzw"},
     "delta": {"id": "imagecodecs_delta"},
+    "deflate": {"id": "imagecodecs_deflate"},
+    "zstd": {"id": "imagecodecs_zstd"},
 }
 
 
@@ -42,7 +44,7 @@ def _parse_codec_configuration(data: dict[str, JSON]) -> dict[str, JSON]:
 
 
 @dataclass(frozen=True)
-class _NumcodecsCodec:
+class _ImageCodecsCodec:
     codec_name: str
     codec_config: dict[str, JSON]
 
@@ -89,7 +91,7 @@ class _NumcodecsCodec:
         raise NotImplementedError  # pragma: no cover
 
 
-class _NumcodecsBytesBytesCodec(_NumcodecsCodec, BytesBytesCodec):
+class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
         super().__init__(**codec_config)
 
@@ -115,7 +117,7 @@ class _NumcodecsBytesBytesCodec(_NumcodecsCodec, BytesBytesCodec):
         return await asyncio.to_thread(self._encode, chunk_bytes, chunk_spec.prototype)
 
 
-class _NumcodecsArrayArrayCodec(_NumcodecsCodec, ArrayArrayCodec):
+class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
         super().__init__(**codec_config)
 
@@ -136,7 +138,7 @@ class _NumcodecsArrayArrayCodec(_NumcodecsCodec, ArrayArrayCodec):
         return chunk_spec.prototype.nd_buffer.from_ndarray_like(out)
 
 
-class _NumcodecsArrayBytesCodec(_NumcodecsCodec, ArrayBytesCodec):
+class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
         super().__init__(**codec_config)
 
@@ -151,7 +153,7 @@ class _NumcodecsArrayBytesCodec(_NumcodecsCodec, ArrayBytesCodec):
 
 
 # array-to-array codecs ("filters")
-class Delta(_NumcodecsArrayArrayCodec):
+class Delta(_ImageCodecsArrayArrayCodec):
     codec_name = f"{CODEC_PREFIX}delta"
 
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
@@ -163,7 +165,7 @@ class Delta(_NumcodecsArrayArrayCodec):
         return chunk_spec
 
 
-T = TypeVar("T", bound=_NumcodecsCodec)
+T = TypeVar("T", bound=_ImageCodecsCodec)
 
 
 def _add_docstring(cls: type[T], ref_class_name: str) -> type[T]:
@@ -175,11 +177,11 @@ def _add_docstring(cls: type[T], ref_class_name: str) -> type[T]:
 
 def _make_bytes_bytes_codec(
     codec_name: str, cls_name: str
-) -> type[_NumcodecsBytesBytesCodec]:
+) -> type[_ImageCodecsBytesBytesCodec]:
     # rename for class scope
     _codec_name = CODEC_PREFIX + codec_name
 
-    class _Codec(_NumcodecsBytesBytesCodec):
+    class _Codec(_ImageCodecsBytesBytesCodec):
         codec_name = _codec_name
 
         def __init__(self, **codec_config: dict[str, JSON]) -> None:
@@ -191,11 +193,11 @@ def _make_bytes_bytes_codec(
 
 def _make_array_array_codec(
     codec_name: str, cls_name: str
-) -> type[_NumcodecsArrayArrayCodec]:
+) -> type[_ImageCodecsArrayArrayCodec]:
     # rename for class scope
     _codec_name = CODEC_PREFIX + codec_name
 
-    class _Codec(_NumcodecsArrayArrayCodec):
+    class _Codec(_ImageCodecsArrayArrayCodec):
         codec_name = _codec_name
 
         def __init__(self, **codec_config: dict[str, JSON]) -> None:
@@ -207,11 +209,11 @@ def _make_array_array_codec(
 
 def _make_array_bytes_codec(
     codec_name: str, cls_name: str
-) -> type[_NumcodecsArrayBytesCodec]:
+) -> type[_ImageCodecsArrayBytesCodec]:
     # rename for class scope
     _codec_name = CODEC_PREFIX + codec_name
 
-    class _Codec(_NumcodecsArrayBytesCodec):
+    class _Codec(_ImageCodecsArrayBytesCodec):
         codec_name = _codec_name
 
         def __init__(self, **codec_config: dict[str, JSON]) -> None:
@@ -221,30 +223,10 @@ def _make_array_bytes_codec(
     return _Codec
 
 
-def _make_checksum_codec(
-    codec_name: str, cls_name: str
-) -> type[_NumcodecsBytesBytesCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
+LZW = _add_docstring(_make_bytes_bytes_codec("lzw", "LZW"), "imagecodecs.lzw")
+Deflate = _add_docstring(
+    _make_bytes_bytes_codec("deflate", "Deflate"), "imagecodecs.deflate"
+)
+Zstd = _add_docstring(_make_bytes_bytes_codec("zstd", "Zstd"), "imagecodecs.zstd")
 
-    class _ChecksumCodec(_NumcodecsBytesBytesCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-        def compute_encoded_size(
-            self, input_byte_length: int, chunk_spec: ArraySpec
-        ) -> int:
-            return input_byte_length + 4  # pragma: no cover
-
-    _ChecksumCodec.__name__ = cls_name
-    return _ChecksumCodec
-
-
-LZW = _add_docstring(_make_bytes_bytes_codec("lzw", "LZW"), "numcodecs.imagecodecs_lzw")
-
-__all__ = [
-    "Delta",
-    "LZW",
-]
+__all__ = ["Delta", "LZW", "Zstd", "Deflate"]

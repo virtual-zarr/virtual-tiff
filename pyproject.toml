@@ -95,3 +95,6 @@ packages = [
 [project.entry-points."zarr.codecs"]
 "imagecodecs.delta" = "virtual_tiff.imagecodecs:Delta"
 "imagecodecs.lzw" = "virtual_tiff.imagecodecs:LZW"
+"imagecodecs.zstd" = "virtual_tiff.imagecodecs:Zstd"
+"imagecodecs.deflate" = "virtual_tiff.imagecodecs:Deflate"
+
