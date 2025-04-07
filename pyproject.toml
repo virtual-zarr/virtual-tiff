@@ -40,16 +40,6 @@ dependencies = [
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
 [dependency-groups]
-docs = [
-  "sphinx",
-  "myst_nb",
-  "pydata_sphinx_theme",
-  "sphinx_copybutton",
-  "sphinx_design",
-  "sphinx_togglebutton",
-  "sphinx-autobuild>=2021.3.14",
-  "sphinx-autodoc-typehints",
-]
 dev = [
   "codecov",
   "netcdf4",
@@ -64,8 +54,6 @@ dev = [
   "pytest-xdist",
   "ruff",
   "s3fs",
-  "lithops",
-  "dask",
   "rioxarray",
   "rasterio",
   "earthaccess",
