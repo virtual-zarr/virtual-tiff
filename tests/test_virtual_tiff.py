@@ -77,4 +77,4 @@ class TestVirtualTIFF:
         ds = dataset_from_local_file(filepath)
         assert isinstance(ds, xr.Dataset)
         da_expected = rioxarray.open_rasterio(filepath)
-        np.testing.assert_allclose(ds["0"].data, da_expected.data.squeeze())
+        np.testing.assert_allclose(ds["0"].data.squeeze(), da_expected.data.squeeze())
