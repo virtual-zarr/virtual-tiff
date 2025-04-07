@@ -89,3 +89,6 @@ source = "vcs"
 packages = [
   "src/virtual_tiff",
 ]
+
+[project.entry-points."zarr.codecs"]
+"imagecodecs.delta" = "virtual_tiff.imagecodecs:Delta"

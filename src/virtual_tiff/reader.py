@@ -32,7 +32,7 @@ def _get_compression(ifd, compression):
         raise NotImplementedError("LZW compression is not yet supported")
     elif compression in (6, 7):  # 6 is old style, 7 in new style
         raise NotImplementedError("JPEG compression is not yet supported")
-    elif compression == 8:  # Dellate (zlib), Adobe fariant
+    elif compression == 8:  # Deflate (zlib), Adobe variant
         return registry.get_codec(dict(id="zlib", level=6))
     elif compression == 32773:
         return NotImplementedError("Packbits compression is not yet supported")
@@ -103,7 +103,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     )
     codecs = []
     if ifd.predictor == 2:
-        codecs.append(registry.get_codec(dict(id="imagecodecs_delta", dtype=dtype.str)))
+        codecs.append(registry.get_codec(dict(id="imagecodecs.delta", dtype=dtype.str)))
     compression = ifd.compression
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
