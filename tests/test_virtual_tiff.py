@@ -31,12 +31,16 @@ def gdal_samples():
     return [file.name for file in tif_files]
 
 
-def dataset_from_local_file(filepath):
+def manifest_store_from_local_file(filepath):
     from obstore.store import LocalStore
 
-    ms = create_manifest_store(
+    return create_manifest_store(
         filepath=filepath, group="0", file_id="file://", store=LocalStore()
     )
+
+
+def dataset_from_local_file(filepath):
+    ms = manifest_store_from_local_file(filepath)
     return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
 
 
@@ -51,7 +55,7 @@ class TestVirtualTIFF:
         np.testing.assert_allclose(observed, expected)
 
     @pytest.mark.parametrize("filename", example_tiffs())
-    def test_real_examples(self, filename):
+    def test_manifest_store_real_examples(self, filename):
         import rioxarray
 
         filepath = resolve_filepath(filename, folder="tests/data")
@@ -60,8 +64,16 @@ class TestVirtualTIFF:
         da_expected = rioxarray.open_rasterio(filepath)
         np.testing.assert_allclose(ds["0"].data, da_expected.data.squeeze())
 
+    @pytest.mark.parametrize("filename", example_tiffs())
+    def test_virtual_dataset_real_examples(self, filename):
+        filepath = resolve_filepath(filename, folder="tests/data")
+        ms = manifest_store_from_local_file(filepath)
+        ds = ms.to_virtual_dataset()
+        assert isinstance(ds, xr.Dataset)
+        # TODO: Add more property tests
+
     @pytest.mark.parametrize("filename", gdal_samples())
-    def test_gdal_examples(self, filename):
+    def test_manifest_store_gdal_examples(self, filename):
         import rioxarray
 
         filepath = resolve_filepath(filename, folder="tests/data/gdal_autotest")
