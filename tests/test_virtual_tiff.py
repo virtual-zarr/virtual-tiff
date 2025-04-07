@@ -35,7 +35,7 @@ def dataset_from_local_file(filepath):
     from obstore.store import LocalStore
 
     ms = create_manifest_store(
-        filepath=filepath, group="0", file_id="file://", object_store=LocalStore()
+        filepath=filepath, group="0", file_id="file://", store=LocalStore()
     )
     return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
 
