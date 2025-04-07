@@ -43,17 +43,8 @@ def dataset_from_local_file(filepath):
 class TestVirtualTIFF:
     def test_synthetic_example(self, geotiff_file):
         import rioxarray
-        from obstore.store import LocalStore
 
-        ms = create_manifest_store(
-            filepath=geotiff_file,
-            group="0",
-            file_id="file://",
-            object_store=LocalStore(),
-        )
-        ds = xr.open_dataset(
-            ms, engine="zarr", consolidated=False, zarr_format=3
-        ).load()
+        ds = dataset_from_local_file(geotiff_file)
         assert isinstance(ds, xr.Dataset)
         expected = rioxarray.open_rasterio(geotiff_file).data.squeeze()
         observed = ds["0"].data.squeeze()

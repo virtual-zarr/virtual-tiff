@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from virtual_tiff.constants import SAMPLE_DTYPES
 import math
-from typing import (
-    TYPE_CHECKING,
-    Any,
-)
+from typing import TYPE_CHECKING, Any, Iterable
 
 import numcodecs.registry as registry
 from zarr.core.sync import sync
@@ -48,21 +45,26 @@ def _get_compression(ifd, compression):
 
 
 def _construct_chunk_manifest(
-    ifd: ImageFileDirectory,
     *,
     path: str,
     shape: tuple[int, ...],
     chunks: tuple[int, ...],
+    offsets: Iterable[int],
+    byte_counts: Iterable[int],
 ) -> ChunkManifest:
-    tile_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    offsets = np.array(offsets, dtype=np.uint64).reshape(chunk_manifest_shape)
+    byte_counts = np.array(byte_counts, dtype=np.uint64).reshape(chunk_manifest_shape)
     # See https://web.archive.org/web/20240329145228/https://www.awaresystems.be/imaging/tiff/tifftags/tileoffsets.html for ordering of offsets.
-    tile_offsets = np.array(ifd.tile_offsets, dtype=np.uint64).reshape(tile_shape)
-    tile_counts = np.array(ifd.tile_byte_counts, dtype=np.uint64).reshape(tile_shape)
-    paths = np.full_like(tile_offsets, path, dtype=np.dtypes.StringDType)
+    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
+    if np.all(offsets == 0) or np.all(byte_counts == 0):
+        raise NotImplementedError(
+            "TIFFs without byte counts and offsets aren't supported"
+        )
     return ChunkManifest.from_arrays(
         paths=paths,
-        offsets=tile_offsets,
-        lengths=tile_counts,
+        offsets=offsets,
+        lengths=byte_counts,
     )
 
 
@@ -75,17 +77,29 @@ async def _open_tiff(
 
 
 def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
-    if not ifd.tile_height or not ifd.tile_width:
-        raise NotImplementedError(
-            f"TIFF reader currently only supports tiled TIFFs, but {path} has no internal tiling."
-        )
-    chunks = (ifd.tile_height, ifd.tile_height)
     shape = (ifd.image_height, ifd.image_width)
-    dtype = np.dtype(
-        SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
-    )
+    try:
+        dtype = np.dtype(
+            SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
+        )
+    except KeyError as e:
+        raise ValueError(
+            f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
+        ) from e
+    if ifd.samples_per_pixel > 1:
+        raise NotImplementedError(
+            f"Only one sample per pixel is currently supported, got {ifd.samples_per_pixel}"
+        )
+    if ifd.tile_height and ifd.tile_width:
+        chunks = (ifd.tile_height, ifd.tile_width)
+        offsets = ifd.tile_offsets
+        byte_counts = ifd.tile_byte_counts
+    elif ifd.rows_per_strip:
+        chunks = (ifd.rows_per_strip, ifd.image_width)
+        offsets = ifd.strip_offsets
+        byte_counts = ifd.strip_byte_counts
     chunk_manifest = _construct_chunk_manifest(
-        ifd, path=path, shape=shape, chunks=chunks
+        path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = []
     if ifd.predictor == 2:
