@@ -25,4 +25,4 @@ First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
 
 ## License
 
-`why-virtualize-geotiff` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`virtual-tiff` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
