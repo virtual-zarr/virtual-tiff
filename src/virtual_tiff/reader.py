@@ -21,6 +21,7 @@ from virtualizarr.manifests.utils import create_v3_array_metadata
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory
+    from async_tiff.store import ObjectStore as AsyncTiffObjectStore
     from obstore.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
     from zarr.core.abc.store import Store
 
@@ -132,21 +133,28 @@ def _construct_manifest_group(
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
 
+def _convert_obstore_to_async_tiff_store(store: LocalStore) -> AsyncTiffObjectStore:
+    """
+    We need to use an async_tiff ObjectStore instance rather than an ObjectStore instance for opening and parsing the TIFF file,
+    so that the store isn't passed through Python.
+    """
+    # TODO: Support all ObjectStore instance types
+    from async_tiff.store import LocalStore as AsyncTiffLocalStore
+
+    newargs = store.__getnewargs_ex__()
+    return AsyncTiffLocalStore(*newargs[0], **newargs[1])
+
+
 def create_manifest_store(
     filepath: str,
     group: str,
     file_id: str,
-    object_store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore,
+    store: LocalStore,
 ) -> Store:
-    # TODO: Make this less sketchy, but it's better to use an AsyncTIFF store rather than an obstore store
-    from async_tiff.store import LocalStore as ATStore
-
-    newargs = object_store.__getnewargs_ex__()
-    at_store = ATStore(*newargs[0], **newargs[1])
-
+    async_tiff_store = _convert_obstore_to_async_tiff_store(store)
     # Create a group containing dataset level metadata and all the manifest arrays
     manifest_group = _construct_manifest_group(
-        store=at_store, path=filepath, group=group
+        store=async_tiff_store, path=filepath, group=group
     )
     # Convert to a manifest store
-    return ManifestStore(stores={file_id: object_store}, group=manifest_group)
+    return ManifestStore(stores={file_id: store}, group=manifest_group)
