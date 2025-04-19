@@ -26,5 +26,9 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
+      # Pull baseline image data from dvc remote (DAGsHub)
+      - name: Pull baseline image data from dvc remote
+        run: uv run --dev dvc pull --verbose && ls -lhR tests/dvc/
+
       - name: Run tests
         run: uv run --all-groups pytest
