@@ -28,7 +28,7 @@ jobs:
 
       # Pull baseline image data from dvc remote (DAGsHub)
       - name: Pull baseline image data from dvc remote
-        run: uv run --dev dvc pull --no-run-cache --verbose && ls -lhR tests/dvc/
+        run: uv run --dev dvc pull --verbose && ls -lhR tests/dvc/
 
       - name: Run tests
         run: uv run --all-groups pytest
