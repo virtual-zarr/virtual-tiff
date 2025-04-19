@@ -54,15 +54,16 @@ class TestVirtualTIFF:
         observed = ds["0"].data.squeeze()
         np.testing.assert_allclose(observed, expected)
 
-    # @pytest.mark.parametrize("filename", example_tiffs())
-    # def test_manifest_store_real_examples(self, filename):
-    #     import rioxarray
+    @pytest.mark.parametrize("filename", example_tiffs())
+    def test_manifest_store_real_examples(self, filename):
+        import rioxarray
 
-    #     filepath = resolve_filepath(filename, folder="tests/dvc/github")
-    #     ds = dataset_from_local_file(filepath)
-    #     assert isinstance(ds, xr.Dataset)
-    #     da_expected = rioxarray.open_rasterio(filepath)
-    #     np.testing.assert_allclose(ds["0"].data, da_expected.data.squeeze())
+        filepath = resolve_filepath(filename, folder="tests/dvc/github")
+        da_expected = rioxarray.open_rasterio(filepath)
+        ds = dataset_from_local_file(filepath)
+        assert isinstance(ds, xr.Dataset)
+        da = ds["0"]
+        np.testing.assert_allclose(da.data, da_expected.data.squeeze())
 
     # @pytest.mark.parametrize("filename", example_tiffs())
     # def test_virtual_dataset_real_examples(self, filename):

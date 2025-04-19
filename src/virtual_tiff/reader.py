@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from virtual_tiff.constants import SAMPLE_DTYPES
 import math
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Tuple
 
 from zarr.core.sync import sync
 
@@ -75,8 +75,7 @@ async def _open_tiff(
 
 
 def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
-    shape = (ifd.image_height, ifd.image_width)
-
+    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
     try:
         dtype = np.dtype(
             SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
@@ -85,24 +84,27 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
         ) from e
-    if ifd.samples_per_pixel > 1:
-        raise NotImplementedError(
-            f"Only one sample per pixel is currently supported, got {ifd.samples_per_pixel}"
-        )
+    dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
-        chunks = (ifd.tile_height, ifd.tile_width)
+        chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
         offsets = ifd.tile_offsets
         byte_counts = ifd.tile_byte_counts
     elif ifd.rows_per_strip:
         chunks = (ifd.rows_per_strip, ifd.image_width)
         offsets = ifd.strip_offsets
         byte_counts = ifd.strip_byte_counts
+    if ifd.samples_per_pixel > 1:
+        shape = (int(ifd.samples_per_pixel),) + shape
+        chunks = (int(ifd.samples_per_pixel),) + chunks
+        dimension_names = ("band",) + dimension_names
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = []
     if ifd.predictor == 2:
-        codec = dict(name="imagecodecs_delta", dtype=dtype.str)
+        codec = dict(
+            name="imagecodecs_delta", dtype=dtype.str, dist=ifd.samples_per_pixel
+        )
         codecs.append(codec)
     elif ifd.predictor == 3:
         codec = dict(name="imagecodecs_floatpred", dtype=dtype.str, shape=chunks)
@@ -114,7 +116,6 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     # gdal_fill_value = ifd.other_tags.get(42113, None)
     # if gdal_fill_value:
     #     attributes["_FillValue"] = FillValueCoder.encode(gdal_fill_value, dtype)
-    dimension_names = ("y", "x")  # Following rioxarray's behavior
 
     metadata = create_v3_array_metadata(
         shape=shape,
