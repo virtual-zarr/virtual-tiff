@@ -53,7 +53,6 @@ coverage.xml
 docs/_build/
 docs/api
 docs/data
-data
 data.zip
 
 # PyBuilder
@@ -80,7 +79,6 @@ src/zarr/_version.py
 #example*
 #doesnotexist
 #test_sync*
-data/*
 src/fixture/
 fixture/
 junit.xml
