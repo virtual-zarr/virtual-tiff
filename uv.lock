@@ -33,6 +33,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/95/67/026598918f92145156f2feb7957f57daefda20375cc2ac1a0692a9b8010b/aiobotocore-2.21.1-py3-none-any.whl", hash = "sha256:bd7c49a6d6f8a3d9444b0a94417c8da13813b5c7eec1c4f0ec2db7e8ce8f23e7", size = 78313 },
 ]
 
+[package.optional-dependencies]
+boto3 = [
+    { name = "boto3" },
+]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -260,6 +265,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7c/58/1546c970afcd2a2428b1bfafecf2371d8951cc34b46701bea73f4280989e/billiard-4.2.1.tar.gz", hash = "sha256:12b641b0c539073fc8d3f5b8b7be998956665c4233c7c1fcd66a7e677c4fb36f", size = 155031 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/30/da/43b15f28fe5f9e027b41c539abc5469052e9d48fd75f8ff094ba2a0ae767/billiard-4.2.1-py3-none-any.whl", hash = "sha256:40b59a4ac8806ba2c2369ea98d876bc6108b051c227baffd928c644d15d8f3cb", size = 86766 },
+]
+
+[[package]]
+name = "boto3"
+version = "1.37.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+    { name = "jmespath" },
+    { name = "s3transfer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/8c/c2af03daafaacea1db1823d23073facffa75818b61d376c3be77dd297ae8/boto3-1.37.1.tar.gz", hash = "sha256:96d18f7feb0c1fcb95f8837b74b6c8880e1b4e35ce5f8a8f8cb243a090c278ed", size = 111175 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/ec/e722c53c9dc41e8df094587c32e19409bace8b43b5eb31fe3536ca57a38b/boto3-1.37.1-py3-none-any.whl", hash = "sha256:4320441f904435a1b85e6ecb81793192e522c737cc9ed6566014e29f0a11cb22", size = 139338 },
 ]
 
 [[package]]
@@ -839,6 +858,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/41/65/46cbbe4907a14d458be93e4f3fdc6b25011623aa705ef0d9bbce11b53509/dvc-3.59.1-py3-none-any.whl", hash = "sha256:445c66f5d8304cf868ecff7b6d9428bff7879cff9545f0ac5a896572e14e14dd", size = 457702 },
 ]
 
+[package.optional-dependencies]
+s3 = [
+    { name = "dvc-s3" },
+]
+
 [[package]]
 name = "dvc-data"
 version = "3.16.9"
@@ -893,6 +917,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/be/15/605312dbdc0931547987ee25a9a3f6fcabf48ca1436039abcd524156b8e2/dvc-render-1.0.2.tar.gz", hash = "sha256:40d1cd81760daf34b48fa8362b5002fcbe415e3cdbcf42369b6347d01497ffc0", size = 37772 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/25/e4/d79fe332346a47b5468751292c0e45e496e10441e548ef447df1b6adb018/dvc_render-1.0.2-py3-none-any.whl", hash = "sha256:7e3e3cec1200fda41a99984190f14871f3cb878db7f94c853305056f69614ddb", size = 22070 },
+]
+
+[[package]]
+name = "dvc-s3"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiobotocore", extra = ["boto3"] },
+    { name = "dvc" },
+    { name = "flatten-dict" },
+    { name = "s3fs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fa/cf/14e5f014f77381a58617c1ee3ae98f8fc15768e6a89ff0efac3ff7fc0016/dvc_s3-3.2.0.tar.gz", hash = "sha256:1d012ac1dce47659986f918123b48931cf9b3429ab0b4a22fd4b02448185ceb6", size = 16418 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/e9/a14a7e0132bf03b4d3a4226dee00d42d661b33a4fcedd5f0b147421344db/dvc_s3-3.2.0-py3-none-any.whl", hash = "sha256:036fa8b847349f14cf8ab5e789ae4eda47f50dd1eee487c83ee1c0902d647c25", size = 13817 },
 ]
 
 [[package]]
@@ -2391,6 +2430,18 @@ wheels = [
 ]
 
 [[package]]
+name = "s3transfer"
+version = "0.11.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/24/1390172471d569e281fcfd29b92f2f73774e95972c965d14b6c802ff2352/s3transfer-0.11.3.tar.gz", hash = "sha256:edae4977e3a122445660c7c114bba949f9d191bae3b34a096f18a1c8c354527a", size = 148042 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/81/48c41b554a54d75d4407740abb60e3a102ae416284df04d1dbdcbe3dbf24/s3transfer-0.11.3-py3-none-any.whl", hash = "sha256:ca855bdeb885174b5ffa95b9913622459d4ad8e331fc98eb01e6d5eb6a30655d", size = 84246 },
+]
+
+[[package]]
 name = "scmrepo"
 version = "3.3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -2703,7 +2754,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "codecov" },
-    { name = "dvc" },
+    { name = "dvc", extra = ["s3"] },
     { name = "earthaccess" },
     { name = "mypy" },
     { name = "netcdf4" },
@@ -2735,7 +2786,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "codecov" },
-    { name = "dvc", specifier = ">=3.59.1" },
+    { name = "dvc", extras = ["s3"], specifier = ">=3.59.1" },
     { name = "earthaccess" },
     { name = "mypy" },
     { name = "netcdf4" },
