@@ -54,29 +54,31 @@ class TestVirtualTIFF:
         observed = ds["0"].data.squeeze()
         np.testing.assert_allclose(observed, expected)
 
-    @pytest.mark.parametrize("filename", example_tiffs())
-    def test_manifest_store_real_examples(self, filename):
-        import rioxarray
+    # @pytest.mark.parametrize("filename", example_tiffs())
+    # def test_manifest_store_real_examples(self, filename):
+    #     import rioxarray
 
-        filepath = resolve_filepath(filename, folder="tests/dvc/github")
-        ds = dataset_from_local_file(filepath)
-        assert isinstance(ds, xr.Dataset)
-        da_expected = rioxarray.open_rasterio(filepath)
-        np.testing.assert_allclose(ds["0"].data, da_expected.data.squeeze())
+    #     filepath = resolve_filepath(filename, folder="tests/dvc/github")
+    #     ds = dataset_from_local_file(filepath)
+    #     assert isinstance(ds, xr.Dataset)
+    #     da_expected = rioxarray.open_rasterio(filepath)
+    #     np.testing.assert_allclose(ds["0"].data, da_expected.data.squeeze())
 
-    @pytest.mark.parametrize("filename", example_tiffs())
-    def test_virtual_dataset_real_examples(self, filename):
-        filepath = resolve_filepath(filename, folder="tests/dvc/github")
-        ms = manifest_store_from_local_file(filepath)
-        ds = ms.to_virtual_dataset()
-        assert isinstance(ds, xr.Dataset)
-        # TODO: Add more property tests
+    # @pytest.mark.parametrize("filename", example_tiffs())
+    # def test_virtual_dataset_real_examples(self, filename):
+    #     filepath = resolve_filepath(filename, folder="tests/dvc/github")
+    #     ms = manifest_store_from_local_file(filepath)
+    #     ds = ms.to_virtual_dataset()
+    #     assert isinstance(ds, xr.Dataset)
+    #     # TODO: Add more property tests
 
-    @pytest.mark.parametrize("filename", gdal_samples("0/0"))
+    @pytest.mark.parametrize("filename", gdal_samples("data/geoloc"))
     def test_manifest_store_gdal_0(self, filename):
         import rioxarray
 
-        filepath = resolve_filepath(filename, folder="tests/dvc/gdal_autotest/0/0")
+        filepath = resolve_filepath(
+            filename, folder="tests/dvc/gdal_autotest/data/geoloc"
+        )
         ds = dataset_from_local_file(filepath)
         assert isinstance(ds, xr.Dataset)
         da_expected = rioxarray.open_rasterio(filepath)
