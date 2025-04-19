@@ -68,7 +68,7 @@ omit = []
 
 [tool.uv.sources]
 virtualizarr = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
-zarr = { git = "https://github.com/maxrjones/zarr-python", rev ="41ad842768a754dbb80c30d8486b40970d0bc74c" }
+zarr = { git = "https://github.com/zarr-developers/zarr-python.git" }
 
 [tool.hatch.version]
 source = "vcs"
