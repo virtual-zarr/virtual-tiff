@@ -58,6 +58,7 @@ dev = [
   "rasterio",
   "earthaccess",
   "xarray",
+  "dvc>=3.59.1",
 ]
 
 [tool.coverage.run]
