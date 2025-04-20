@@ -80,10 +80,11 @@ packages = [
 ]
 
 [project.entry-points."zarr.codecs"]
-"imagecodecs_delta" = "virtual_tiff.imagecodecs:Delta"
-"imagecodecs_lzw" = "virtual_tiff.imagecodecs:LZW"
-"imagecodecs_zstd" = "virtual_tiff.imagecodecs:Zstd"
-"imagecodecs_deflate" = "virtual_tiff.imagecodecs:Deflate"
-"imagecodecs_floatpred" = "virtual_tiff.imagecodecs:FloatPred"
-"chunky_bytes" = "virtual_tiff.codecs:ChunkyBytesCodec"
+"imagecodecs_delta" = "virtual_tiff.imagecodecs:DeltaCodec"
+"imagecodecs_lzw" = "virtual_tiff.imagecodecs:LZWCodec"
+"imagecodecs_zstd" = "virtual_tiff.imagecodecs:ZstdCodec"
+"imagecodecs_deflate" = "virtual_tiff.imagecodecs:DeflateCodec"
+"imagecodecs_floatpred" = "virtual_tiff.imagecodecs:FloatPredCodec"
+"virtual_tiff.ChunkyBytesCodec" = "virtual_tiff.codecs:ChunkyBytesCodec"
+"virtual_tiff.DeltaArrayCodec" = "virtual_tiff.codecs:DeltaArrayCodec"
 

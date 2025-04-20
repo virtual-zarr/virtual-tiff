@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from zarr.abc.codec import ArrayBytesCodec
+from zarr.abc.codec import ArrayBytesCodec, ArrayArrayCodec
 from zarr.core.buffer import Buffer, NDArrayLike, NDBuffer
 from zarr.core.common import JSON, parse_enum, parse_named_configuration
 from zarr.registry import register_codec
@@ -47,13 +47,13 @@ class ChunkyBytesCodec(ArrayBytesCodec):
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
         _, configuration_parsed = parse_named_configuration(
-            data, "chunky_bytes", require_configuration=False
+            data, "ChunkyBytesCodec", require_configuration=False
         )
         configuration_parsed = configuration_parsed or {}
         return cls(**configuration_parsed)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
-        return {"name": "chunky_bytes"}
+        return {"name": "ChunkyBytesCodec"}
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
         if array_spec.dtype.itemsize == 0:
@@ -91,7 +91,11 @@ class ChunkyBytesCodec(ArrayBytesCodec):
 
         # ensure correct chunk shape
         if chunk_array.shape != chunk_spec.shape:
-            pass  # chunk_array = chunk_array.__class__(chunk_array._data.reshape(chunk_spec.shape, order=""F))
+            chunk_array = chunk_array.__class__(
+                np.ascontiguousarray(
+                    chunk_array._data.reshape(chunk_spec.shape, order="F")
+                )
+            )
         return chunk_array
 
     async def _encode_single(
@@ -121,4 +125,46 @@ class ChunkyBytesCodec(ArrayBytesCodec):
         return input_byte_length
 
 
-register_codec("chunky_bytes", ChunkyBytesCodec)
+@dataclass(frozen=True)
+class DeltaArrayCodec(ArrayArrayCodec):
+    is_fixed_size = True
+
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JSON]) -> Self:
+        _, configuration_parsed = parse_named_configuration(
+            data, "DeltaArrayCodec", require_configuration=False
+        )
+        configuration_parsed = configuration_parsed or {}
+        return cls(**configuration_parsed)  # type: ignore[arg-type]
+
+    def to_dict(self) -> dict[str, JSON]:
+        return {"name": "DeltaArrayCodec"}
+
+    def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
+        return self
+
+    async def _decode_single(
+        self,
+        chunk_array: NDBuffer,
+        chunk_spec: ArraySpec,
+    ) -> NDBuffer:
+        return chunk_array.__class__(chunk_array._data.cumsum(axis=-1))
+
+    async def _encode_single(
+        self,
+        chunk_array: NDBuffer,
+        _chunk_spec: ArraySpec,
+    ) -> NDBuffer | None:
+        raise NotImplementedError()
+
+    def compute_encoded_size(
+        self, input_byte_length: int, _chunk_spec: ArraySpec
+    ) -> int:
+        return input_byte_length
+
+
+register_codec("ChunkyBytesCodec", ChunkyBytesCodec)
+register_codec("DeltaArrayCodec", DeltaArrayCodec)

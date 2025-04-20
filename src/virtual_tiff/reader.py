@@ -3,7 +3,7 @@ from __future__ import annotations
 from virtual_tiff.constants import SAMPLE_DTYPES
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
-
+from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 from virtualizarr.manifests import (
     ChunkManifest,
@@ -11,8 +11,8 @@ from virtualizarr.manifests import (
     ManifestGroup,
     ManifestStore,
 )
-from virtualizarr.manifests.utils import create_v3_array_metadata
 from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_store
+from zarr.codecs import BytesCodec
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory
@@ -34,17 +34,23 @@ def _get_compression(ifd, compression):
     if compression in (2, 3, 4):
         raise NotImplementedError("CCITT compression is not yet supported")
     elif compression == 5:
-        return dict(name="imagecodecs_lzw")
+        from virtual_tiff.imagecodecs import LZWCodec
+
+        return LZWCodec()
     elif compression in (6, 7):  # 6 is old style, 7 in new style
         raise NotImplementedError("JPEG compression is not yet supported")
     elif compression == 8:  # Deflate (zlib), Adobe variant
-        return dict(name="imagecodecs_deflate")
+        from virtual_tiff.imagecodecs import DeflateCodec
+
+        return DeflateCodec()
     elif compression == 32773:
         return NotImplementedError("Packbits compression is not yet supported")
     elif compression == 50000:
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
         level = ifd.other_tags.get("65564", 9)
-        return dict(name="imagecodecs_zstd", level=level)
+        from virtual_tiff.imagecodecs import ZstdCodec
+
+        return ZstdCodec(level=level)
     else:
         raise ValueError(f"Compression {compression} not recognized")
 
@@ -109,15 +115,23 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     )
     codecs = []
     if ifd.predictor == 2:
-        codec = dict(name="imagecodecs_delta", dtype=dtype.str, axis=-1)
-        codecs.append(codec)
+        from virtual_tiff.codecs import DeltaArrayCodec
+
+        codecs.append(DeltaArrayCodec())
     elif ifd.predictor == 3:
-        codec = dict(name="imagecodecs_floatpred", dtype=dtype.str, shape=chunks)
+        from virtual_tiff.imagecodecs import FloatPredCodec
+
+        codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
     compression = ifd.compression
     if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 1:
-        codec = dict(name="chunky_bytes")
-        codecs.append(codec)
+        from virtual_tiff.codecs import ChunkyBytesCodec
+        from zarr.codecs import TransposeCodec
+
+        codecs.append(TransposeCodec(order=(0, 2, 1)))
+        codecs.append(ChunkyBytesCodec())
+    else:
+        codecs.append(BytesCodec())
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     # # Use CF style fill value for GDAL fill value
@@ -125,14 +139,19 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     # if gdal_fill_value:
     #     attributes["_FillValue"] = FillValueCoder.encode(gdal_fill_value, dtype)
 
-    metadata = create_v3_array_metadata(
+    metadata = ArrayV3Metadata(
         shape=shape,
         data_type=dtype,
-        chunk_shape=chunks,
+        chunk_grid={
+            "name": "regular",
+            "configuration": {"chunk_shape": chunks},
+        },
+        chunk_key_encoding={"name": "default"},
         fill_value=None,
         codecs=codecs,
-        dimension_names=dimension_names,
         attributes=None,
+        dimension_names=dimension_names,
+        storage_transformers=None,
     )
     return ManifestArray(metadata=metadata, chunkmanifest=chunk_manifest)
 

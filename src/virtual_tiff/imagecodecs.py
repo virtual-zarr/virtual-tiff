@@ -67,7 +67,6 @@ class _ImageCodecsCodec:
     def _codec(self) -> numcodecs.abc.Codec:
         codec_config = self.codec_config["configuration"]
         codec_config["id"] = self.codec_config["name"]
-        codec_config.pop("name")
         return numcodecs.get_codec(codec_config)
 
     @classmethod
@@ -149,7 +148,7 @@ class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
 
 
 # array-to-array codecs ("filters")
-class Delta(_ImageCodecsArrayArrayCodec):
+class DeltaCodec(_ImageCodecsArrayArrayCodec):
     codec_name = f"{CODEC_PREFIX}delta"
 
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
@@ -161,10 +160,10 @@ class Delta(_ImageCodecsArrayArrayCodec):
         return chunk_spec
 
 
-class FloatPred(_ImageCodecsArrayArrayCodec):
+class FloatPredCodec(_ImageCodecsArrayArrayCodec):
     codec_name = f"{CODEC_PREFIX}floatpred"
 
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config) -> None:
         super().__init__(**codec_config)
 
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
@@ -231,10 +230,12 @@ def _make_array_bytes_codec(
     return _Codec
 
 
-LZW = _add_docstring(_make_bytes_bytes_codec("lzw", "LZW"), "imagecodecs.lzw")
-Deflate = _add_docstring(
-    _make_bytes_bytes_codec("deflate", "Deflate"), "imagecodecs.deflate"
+LZWCodec = _add_docstring(_make_bytes_bytes_codec("lzw", "LZWCodec"), "imagecodecs.lzw")
+DeflateCodec = _add_docstring(
+    _make_bytes_bytes_codec("deflate", "DeflateCodec"), "imagecodecs.deflate"
 )
-Zstd = _add_docstring(_make_bytes_bytes_codec("zstd", "Zstd"), "imagecodecs.zstd")
+ZstdCodec = _add_docstring(
+    _make_bytes_bytes_codec("zstd", "ZstdCodec"), "imagecodecs.zstd"
+)
 
-__all__ = ["Delta", "LZW", "Zstd", "Deflate", "FloatPred"]
+__all__ = ["DeltaCodec", "LZWCodec", "ZstdCodec", "DeflateCodec", "FloatPredCodec"]
