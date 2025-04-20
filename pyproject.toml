@@ -85,4 +85,5 @@ packages = [
 "imagecodecs_zstd" = "virtual_tiff.imagecodecs:Zstd"
 "imagecodecs_deflate" = "virtual_tiff.imagecodecs:Deflate"
 "imagecodecs_floatpred" = "virtual_tiff.imagecodecs:FloatPred"
+"chunky_bytes" = "virtual_tiff.codecs:ChunkyBytesCodec"
 

@@ -32,11 +32,7 @@ def gdal_samples(relative_folder):
 
 
 def manifest_store_from_local_file(filepath):
-    from obstore.store import LocalStore
-
-    return create_manifest_store(
-        filepath=filepath, group="0", file_id="file://", store=LocalStore()
-    )
+    return create_manifest_store(filepath=filepath, group="0")
 
 
 def dataset_from_local_file(filepath):
@@ -59,10 +55,10 @@ class TestVirtualTIFF:
         import rioxarray
 
         filepath = resolve_filepath(filename, folder="tests/dvc/github")
-        da_expected = rioxarray.open_rasterio(filepath)
         ds = dataset_from_local_file(filepath)
         assert isinstance(ds, xr.Dataset)
         da = ds["0"]
+        da_expected = rioxarray.open_rasterio(filepath)
         np.testing.assert_allclose(da.data, da_expected.data.squeeze())
 
     # @pytest.mark.parametrize("filename", example_tiffs())

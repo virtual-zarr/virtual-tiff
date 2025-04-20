@@ -5,7 +5,6 @@ import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
 
 from zarr.core.sync import sync
-
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -13,11 +12,19 @@ from virtualizarr.manifests import (
     ManifestStore,
 )
 from virtualizarr.manifests.utils import create_v3_array_metadata
+from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_store
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory
     from async_tiff.store import ObjectStore as AsyncTiffObjectStore
-    from obstore.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
+    from obstore.store import (
+        AzureStore,
+        GCSStore,
+        HTTPStore,
+        LocalStore,
+        S3Store,
+        ObjectStore,
+    )
     from zarr.core.abc.store import Store
 
 import numpy as np
@@ -102,14 +109,15 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     )
     codecs = []
     if ifd.predictor == 2:
-        codec = dict(
-            name="imagecodecs_delta", dtype=dtype.str, dist=ifd.samples_per_pixel
-        )
+        codec = dict(name="imagecodecs_delta", dtype=dtype.str, axis=-1)
         codecs.append(codec)
     elif ifd.predictor == 3:
         codec = dict(name="imagecodecs_floatpred", dtype=dtype.str, shape=chunks)
         codecs.append(codec)
     compression = ifd.compression
+    if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 1:
+        codec = dict(name="chunky_bytes")
+        codecs.append(codec)
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     # # Use CF style fill value for GDAL fill value
@@ -167,13 +175,15 @@ def _convert_obstore_to_async_tiff_store(store: LocalStore) -> AsyncTiffObjectSt
 def create_manifest_store(
     filepath: str,
     group: str,
-    file_id: str,
-    store: LocalStore,
+    store: ObjectStore | None = None,
 ) -> Store:
+    if not store:
+        store = default_object_store(filepath)
     async_tiff_store = _convert_obstore_to_async_tiff_store(store)
     # Create a group containing dataset level metadata and all the manifest arrays
     manifest_group = _construct_manifest_group(
         store=async_tiff_store, path=filepath, group=group
     )
+    registry = ObjectStoreRegistry({filepath: store})
     # Convert to a manifest store
-    return ManifestStore(stores={file_id: store}, group=manifest_group)
+    return ManifestStore(store_registry=registry, group=manifest_group)
