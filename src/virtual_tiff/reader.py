@@ -125,11 +125,11 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         codecs.append(codec)
     compression = ifd.compression
     if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 1:
-        from virtual_tiff.codecs import ChunkyBytesCodec
+        from virtual_tiff.codecs import ColumnMajorBytesCodec
         from zarr.codecs import TransposeCodec
 
         codecs.append(TransposeCodec(order=(0, 2, 1)))
-        codecs.append(ChunkyBytesCodec())
+        codecs.append(ColumnMajorBytesCodec())
     else:
         codecs.append(BytesCodec())
     if compression > 1:

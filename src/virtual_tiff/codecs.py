@@ -33,7 +33,7 @@ default_system_endian = Endian(sys.byteorder)
 
 
 @dataclass(frozen=True)
-class ChunkyBytesCodec(ArrayBytesCodec):
+class ColumnMajorBytesCodec(ArrayBytesCodec):
     is_fixed_size = True
 
     endian: Endian | None
@@ -47,13 +47,13 @@ class ChunkyBytesCodec(ArrayBytesCodec):
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
         _, configuration_parsed = parse_named_configuration(
-            data, "ChunkyBytesCodec", require_configuration=False
+            data, "ColumnMajorBytesCodec", require_configuration=False
         )
         configuration_parsed = configuration_parsed or {}
         return cls(**configuration_parsed)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
-        return {"name": "ChunkyBytesCodec"}
+        return {"name": "ColumnMajorBytesCodec"}
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
         if array_spec.dtype.itemsize == 0:
@@ -166,5 +166,5 @@ class DeltaArrayCodec(ArrayArrayCodec):
         return input_byte_length
 
 
-register_codec("ChunkyBytesCodec", ChunkyBytesCodec)
+register_codec("ColumnMajorBytesCodec", ColumnMajorBytesCodec)
 register_codec("DeltaArrayCodec", DeltaArrayCodec)
