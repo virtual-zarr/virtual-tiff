@@ -5,6 +5,8 @@ import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
+import numpy as np
+
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -26,8 +28,6 @@ if TYPE_CHECKING:
         ObjectStore,
     )
     from zarr.core.abc.store import Store
-
-import numpy as np
 
 
 def _get_compression(ifd, compression):
