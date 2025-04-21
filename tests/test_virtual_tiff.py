@@ -7,8 +7,6 @@ from conftest import dataset_from_local_file, github_examples, resolve_folder
 
 failures = {
     "IBCSO_v2_ice-surface_cog.tif": "ValueError: Invalid range requested, start: 0 end: 0",
-    "TCI.tif": "NotImplementedError: Only one sample per pixel is currently supported, got 3",
-    "20250331090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif": "Assertion Error",
 }
 
 
