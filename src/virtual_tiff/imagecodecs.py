@@ -50,7 +50,10 @@ class _ImageCodecsCodec:
         unprefixed_codec_name = _expect_name_prefix(self.codec_name)
 
         if "id" not in codec_config:
-            codec_config = {"id": unprefixed_codec_name, **codec_config}
+            codec_config = {
+                "id": unprefixed_codec_name,  # type: ignore
+                **codec_config,
+            }
         elif codec_config["id"] != unprefixed_codec_name:
             raise ValueError(
                 f"Codec id does not match {unprefixed_codec_name}. Got: {codec_config['id']}."
