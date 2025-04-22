@@ -14,7 +14,7 @@ from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
 from zarr.core.array_spec import ArraySpec
 from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer
 from zarr.core.buffer.cpu import as_numpy_array_wrapper
-from zarr.core.common import JSON, parse_named_configuration
+from zarr.core.common import JSON
 
 CODEC_PREFIX = "imagecodecs_"
 
@@ -25,16 +25,6 @@ def _expect_name_prefix(codec_name: str) -> str:
             f"Expected name to start with '{CODEC_PREFIX}'. Got {codec_name} instead."
         )  # pragma: no cover
     return codec_name.removeprefix(CODEC_PREFIX)
-
-
-def _parse_codec_configuration(data: dict[str, JSON]) -> dict[str, JSON]:
-    parsed_name, parsed_configuration = parse_named_configuration(data)
-    if not parsed_name.startswith(CODEC_PREFIX):
-        raise ValueError(
-            f"Expected name to start with '{CODEC_PREFIX}'. Got {parsed_name} instead."
-        )  # pragma: no cover
-    id = _expect_name_prefix(parsed_name)
-    return {"id": id, **parsed_configuration}
 
 
 @dataclass(frozen=True)
