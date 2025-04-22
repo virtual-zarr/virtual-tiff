@@ -44,7 +44,7 @@ def _get_compression(ifd, compression):
 
         return DeflateCodec()
     elif compression == 32773:
-        return NotImplementedError("Packbits compression is not yet supported")
+        raise NotImplementedError("Packbits compression is not yet supported")
     elif compression == 50000:
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
         level = ifd.other_tags.get("65564", 9)
