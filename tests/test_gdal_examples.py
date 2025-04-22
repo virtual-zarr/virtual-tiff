@@ -45,7 +45,8 @@ xfail_byte_counts = [
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
     "byte_truncated.tif",
-    "cog_sparse_strile_arrays_zeroified_when_possible.tif,",
+    "cog_sparse_strile_arrays_zeroified_when_possible.tif",
+    "tiled_bad_offset.tif",
 ]
 xfail_compression = [
     "byte_JXL_tiled.tif",
@@ -242,6 +243,12 @@ xfail_dtype = [
     "cint16.tif",
     "complex_int32.tif",
 ]
+xfail_gdal_cannot_read = [
+    "uint64_LZW_predictor_2.tif",
+    "stefan_full_greyalpha_uint64_LZW_predictor_2.tif",
+    "float64_LZW_predictor_2.tif",
+    "leak-ZIPSetupDecode.tif",
+]
 
 failures = (
     xfail_byte_counts
@@ -250,4 +257,5 @@ failures = (
     + xfail_dtype
     + xfail_panic
     + xfail_reshape
+    + xfail_gdal_cannot_read
 )
