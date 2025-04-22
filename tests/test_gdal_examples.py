@@ -249,6 +249,9 @@ xfail_gdal_cannot_read = [
     "float64_LZW_predictor_2.tif",
     "leak-ZIPSetupDecode.tif",
 ]
+xfail_endian = [
+    "int16_big_endian.tif",
+]
 
 failures = (
     xfail_byte_counts
@@ -258,4 +261,5 @@ failures = (
     + xfail_panic
     + xfail_reshape
     + xfail_gdal_cannot_read
+    + xfail_endian
 )

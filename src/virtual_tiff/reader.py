@@ -124,11 +124,11 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
     compression = ifd.compression
-    if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 1:
-        from virtual_tiff.codecs import ChunkyCodec
+    if ifd.planar_configuration == 1 and ifd.samples_per_pixel > 1:
         from zarr.codecs import TransposeCodec
+        from virtual_tiff.codecs import ChunkyCodec
 
-        codecs.append(TransposeCodec(order=(0, 2, 1)))
+        codecs.append(TransposeCodec(order=(0, *tuple(range(1, len(shape)))[::-1])))
         codecs.append(ChunkyCodec())
     else:
         codecs.append(BytesCodec())
