@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from virtual_tiff.constants import SAMPLE_DTYPES
+from virtual_tiff.utils import convert_obstore_to_async_tiff_store
 import math
 from typing import TYPE_CHECKING, Any, Iterable
 
 from zarr.core.sync import sync
 import numpy as np
+from urllib.parse import urlparse
 
 from virtualizarr.manifests import (
     ChunkManifest,
@@ -18,7 +20,6 @@ from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_sto
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory
-    from async_tiff.store import ObjectStore as AsyncTiffObjectStore
     from obstore.store import (
         AzureStore,
         GCSStore,
@@ -145,7 +146,8 @@ def _construct_manifest_group(
     Construct a virtual Group from a tiff file.
     """
     # TODO: Make an async approach
-    tiff = sync(_open_tiff(store=store, path=path))
+    urlpath = urlparse(path).path
+    tiff = sync(_open_tiff(store=store, path=urlpath))
     attrs: dict[str, Any] = {}
     manifest_arrays = {}
     if group:
@@ -158,18 +160,6 @@ def _construct_manifest_group(
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
 
-def _convert_obstore_to_async_tiff_store(store: LocalStore) -> AsyncTiffObjectStore:
-    """
-    We need to use an async_tiff ObjectStore instance rather than an ObjectStore instance for opening and parsing the TIFF file,
-    so that the store isn't passed through Python.
-    """
-    # TODO: Support all ObjectStore instance types
-    from async_tiff.store import LocalStore as AsyncTiffLocalStore
-
-    newargs = store.__getnewargs_ex__()
-    return AsyncTiffLocalStore(*newargs[0], **newargs[1])
-
-
 def create_manifest_store(
     filepath: str,
     group: str,
@@ -177,7 +167,7 @@ def create_manifest_store(
 ) -> Store:
     if not store:
         store = default_object_store(filepath)
-    async_tiff_store = _convert_obstore_to_async_tiff_store(store)
+    async_tiff_store = convert_obstore_to_async_tiff_store(store)
     # Create a group containing dataset level metadata and all the manifest arrays
     manifest_group = _construct_manifest_group(
         store=async_tiff_store, path=filepath, group=group
