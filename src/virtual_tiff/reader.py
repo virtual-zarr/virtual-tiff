@@ -120,6 +120,10 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = []
+    if ifd.photometric_interpretation in [6, 8]:
+        raise NotImplementedError(
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported"
+        )
     if ifd.predictor == 2:
         from virtual_tiff.codecs import DeltaArrayCodec
 

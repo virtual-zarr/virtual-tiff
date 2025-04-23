@@ -257,6 +257,10 @@ xfail_endian = [
 xfail_subifd = [
     "tiff_with_subifds.tif",
 ]
+xfail_photometric = [
+    "cielab.tif",
+    "int12_ycbcr_contig.tif",
+]
 
 failures = (
     xfail_byte_counts
@@ -268,4 +272,5 @@ failures = (
     + xfail_gdal_cannot_read
     + xfail_endian
     + xfail_subifd
+    + xfail_photometric
 )
