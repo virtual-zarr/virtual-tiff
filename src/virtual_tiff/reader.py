@@ -97,6 +97,8 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
         ) from e
+    if ifd.other_tags.get(330):
+        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported")
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
         chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)

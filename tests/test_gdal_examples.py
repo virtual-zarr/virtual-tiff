@@ -252,6 +252,9 @@ xfail_gdal_cannot_read = [
 xfail_endian = [
     "int16_big_endian.tif",
 ]
+xfail_subifd = [
+    "tiff_with_subifds.tif",
+]
 
 failures = (
     xfail_byte_counts
@@ -262,4 +265,5 @@ failures = (
     + xfail_reshape
     + xfail_gdal_cannot_read
     + xfail_endian
+    + xfail_subifd
 )
