@@ -125,9 +125,9 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
             f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported"
         )
     if ifd.predictor == 2:
-        from virtual_tiff.codecs import DeltaArrayCodec
+        from virtual_tiff.codecs import DeltaCodec
 
-        codecs.append(DeltaArrayCodec())
+        codecs.append(DeltaCodec())
     elif ifd.predictor == 3:
         from virtual_tiff.imagecodecs import FloatPredCodec
 

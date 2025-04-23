@@ -126,7 +126,7 @@ class ChunkyCodec(ArrayBytesCodec):
 
 
 @dataclass(frozen=True)
-class DeltaArrayCodec(ArrayArrayCodec):
+class DeltaCodec(ArrayArrayCodec):
     is_fixed_size = True
 
     def __init__(self) -> None:
@@ -135,13 +135,13 @@ class DeltaArrayCodec(ArrayArrayCodec):
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
         _, configuration_parsed = parse_named_configuration(
-            data, "DeltaArrayCodec", require_configuration=False
+            data, "DeltaCodec", require_configuration=False
         )
         configuration_parsed = configuration_parsed or {}
         return cls(**configuration_parsed)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
-        return {"name": "DeltaArrayCodec"}
+        return {"name": "DeltaCodec"}
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
         return self
@@ -167,4 +167,4 @@ class DeltaArrayCodec(ArrayArrayCodec):
 
 
 register_codec("ChunkyCodec", ChunkyCodec)
-register_codec("DeltaArrayCodec", DeltaArrayCodec)
+register_codec("DeltaCodec", DeltaCodec)
