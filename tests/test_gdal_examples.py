@@ -41,6 +41,8 @@ xfail_byte_counts = [
     "sparse_tiled_contig.tif",
     "projection_from_esri_xml.tif",
     "cog_strile_arrays_zeroified_when_possible.tif",
+    "one_strip_nobytecount.tif",
+    "rgbsmall_cmyk.tif",
 ]
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",

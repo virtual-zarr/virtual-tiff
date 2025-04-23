@@ -108,6 +108,10 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         chunks = (ifd.rows_per_strip, ifd.image_width)
         offsets = ifd.strip_offsets
         byte_counts = ifd.strip_byte_counts
+    else:
+        raise NotImplementedError(
+            "TIFFs without byte counts and offsets aren't supported"
+        )
     if ifd.samples_per_pixel > 1:
         shape = (int(ifd.samples_per_pixel),) + shape
         chunks = (int(ifd.samples_per_pixel),) + chunks
