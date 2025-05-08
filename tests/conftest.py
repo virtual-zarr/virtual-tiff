@@ -50,5 +50,16 @@ def dataset_from_local_file(filepath):
 def rioxarray_comparison(filepath):
     ds = dataset_from_local_file(filepath)
     assert isinstance(ds, xr.Dataset)
-    da_expected = rioxarray.open_rasterio(filepath)
-    np.testing.assert_allclose(ds["0"].data.squeeze(), da_expected.data.squeeze())
+    expected = rioxarray.open_rasterio(filepath)
+    if isinstance(expected, xr.DataArray):
+        np.testing.assert_allclose(ds["0"].data.squeeze(), expected.data.squeeze())
+    elif isinstance(expected, xr.Dataset):
+        expected = expected[filepath.replace("/", "_").lstrip("_")]
+        np.testing.assert_allclose(ds["0"].data.squeeze(), expected.data.squeeze())
+    elif isinstance(expected, list):
+        expected = expected[0][filepath.replace("/", "_").lstrip("_")]
+        np.testing.assert_allclose(ds["0"].data.squeeze(), expected.data.squeeze())
+    else:
+        raise ValueError(
+            f"Unexpected type returned from rioxarray.open_rasterio{filepath}"
+        )
