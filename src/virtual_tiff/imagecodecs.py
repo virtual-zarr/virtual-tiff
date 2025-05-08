@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import Self, TypeVar
+from typing import Self
 from warnings import warn
 
 import numpy as np
@@ -31,6 +31,18 @@ def _expect_name_prefix(codec_name: str) -> str:
 class _ImageCodecsCodec:
     codec_name: str
     codec_config: dict[str, JSON]
+
+    def __init_subclass__(cls, *, codec_name: str | None = None, **kwargs):
+        """To be used only when creating the actual public-facing codec class."""
+        super().__init_subclass__(**kwargs)
+        if codec_name is not None:
+            namespace = codec_name
+
+            cls_name = f"{CODEC_PREFIX}{namespace}.{cls.__name__}"
+            cls.codec_name = f"{CODEC_PREFIX}{namespace}"
+            cls.__doc__ = f"""
+            See :class:`{cls_name}` for more details and parameters.
+            """
 
     def __init__(self, **codec_config: dict[str, JSON]) -> None:
         if not self.codec_name:
@@ -141,94 +153,31 @@ class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
 
 
 # array-to-array codecs ("filters")
-class DeltaCodec(_ImageCodecsArrayArrayCodec):
-    codec_name = f"{CODEC_PREFIX}delta"
-
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
-        super().__init__(**codec_config)
-
+class DeltaCodec(_ImageCodecsArrayArrayCodec, codec_name="delta"):
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
         return chunk_spec
 
 
-class FloatPredCodec(_ImageCodecsArrayArrayCodec):
-    codec_name = f"{CODEC_PREFIX}floatpred"
-
-    def __init__(self, **codec_config) -> None:
-        super().__init__(**codec_config)
-
+class FloatPredCodec(_ImageCodecsArrayArrayCodec, codec_name="floatpred"):
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
         return chunk_spec
 
 
-T = TypeVar("T", bound=_ImageCodecsCodec)
+# bytes-to-bytes codecs
+class LZWCodec(_ImageCodecsBytesBytesCodec, codec_name="lzw"):
+    pass
 
 
-def _add_docstring(cls: type[T], ref_class_name: str) -> type[T]:
-    cls.__doc__ = f"""
-        See :class:`{ref_class_name}` for more details and parameters.
-        """
-    return cls
+class DeflateCodec(_ImageCodecsBytesBytesCodec, codec_name="deflate"):
+    pass
 
 
-def _make_bytes_bytes_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsBytesBytesCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
+class ZstdCodec(_ImageCodecsBytesBytesCodec, codec_name="zstd"):
+    pass
 
-    class _Codec(_ImageCodecsBytesBytesCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
-
-
-def _make_array_array_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsArrayArrayCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
-
-    class _Codec(_ImageCodecsArrayArrayCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
-
-
-def _make_array_bytes_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsArrayBytesCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
-
-    class _Codec(_ImageCodecsArrayBytesCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
-
-
-LZWCodec = _add_docstring(_make_bytes_bytes_codec("lzw", "LZWCodec"), "imagecodecs.lzw")
-DeflateCodec = _add_docstring(
-    _make_bytes_bytes_codec("deflate", "DeflateCodec"), "imagecodecs.deflate"
-)
-ZstdCodec = _add_docstring(
-    _make_bytes_bytes_codec("zstd", "ZstdCodec"), "imagecodecs.zstd"
-)
 
 __all__ = ["DeltaCodec", "LZWCodec", "ZstdCodec", "DeflateCodec", "FloatPredCodec"]
