@@ -32,10 +32,10 @@ classifiers = [
 dependencies = [
     "obstore",
     "async_tiff",
-    "virtualizarr",
+    "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr",
     "imagecodecs",
     "imagecodecs-numcodecs",
-    "zarr",
+    "zarr @ git+https://github.com/zarr-developers/zarr-python",
 ]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
@@ -54,22 +54,52 @@ dev = [
   "pytest-xdist",
   "ruff",
   "s3fs",
-  "rioxarray",
-  "rasterio",
   "earthaccess",
   "xarray",
   "dvc[s3]>=3.59.1",
 ]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+# Add the editable project pip install to the default group
+[tool.pixi.pypi-dependencies]
+virtual_tiff = { path = ".", editable = true }
+
+# Define a feature set for Python 3.11
+[tool.pixi.feature.py311.dependencies]
+python = "3.11.*"
+
+# Define a feature set for Python 3.12
+[tool.pixi.feature.py312.dependencies]
+python = "3.12.*"
+
+# Define a feature set for Python 3.12
+[tool.pixi.feature.test.dependencies]
+rioxarray = "*"
+rasterio = "*"
+
+# Define commands to run within the test environments
+[tool.pixi.feature.test.tasks]
+run-mypy = { cmd = "mypy src" }
+run-tests = { cmd = "pytest --verbose --durations=10" }
+run-tests-cov = { cmd = "pytest --verbose --cov=src --cov=term-missing" }
+run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
+run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
+download-test-images = { cmd = "dvc pull" }
+
+# Define which features and groups to include in different pixi (similar to conda) environments)
+[tool.pixi.environments]
+test = ["dev", "test"]
+test-py311 = ["dev", "test", "py311"] # test against python 3.11
+test-py312 = ["dev", "test","py312"] # test against python 3.12
 
 [tool.coverage.run]
 source_pkgs = [""]
 branch = true
 parallel = true
 omit = []
-
-[tool.uv.sources]
-virtualizarr = { git = "https://github.com/zarr-developers/VirtualiZarr.git" }
-zarr = { git = "https://github.com/zarr-developers/zarr-python.git" }
 
 [tool.hatch.version]
 source = "vcs"
@@ -78,6 +108,9 @@ source = "vcs"
 packages = [
   "src/virtual_tiff",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.entry-points."zarr.codecs"]
 "imagecodecs_deflate" = "virtual_tiff.imagecodecs:DeflateCodec"
