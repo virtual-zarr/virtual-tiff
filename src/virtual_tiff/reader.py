@@ -35,8 +35,10 @@ def _get_compression(ifd, compression):
     codec = COMPRESSORS.get(compression)
     if not codec:
         raise ValueError(f"Compression {compression} not recognized")
-    if "jpeg" in codec.codec_name:
-        return codec(tables=ifd.jpeg_tables)
+    if hasattr(ifd, "jpeg_tables") and ifd.jpeg_tables:
+        raise NotImplementedError(
+            "JPEG compression with quantization tables are not yet supported."
+        )
     if codec.codec_name == "imagecodecs_zstd":
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
         return ZstdCodec(level=ifd.other_tags.get("65564", 9))
