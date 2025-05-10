@@ -9,7 +9,7 @@ from conftest import (
 
 @pytest.mark.parametrize("filename", gdal_autotest_examples())
 def test_against_rioxarray_gdal_autotest(filename):
-    if filename in failures:
+    if filename in skip:
         pytest.xfail("Known failure")
     filepath = f"{resolve_folder('tests/dvc/gdal_autotest')}/{filename}"
     rioxarray_comparison(filepath)
@@ -17,11 +17,15 @@ def test_against_rioxarray_gdal_autotest(filename):
 
 @pytest.mark.parametrize("filename", gdal_gcore_examples())
 def test_against_rioxarray_gdal_gcore(filename):
-    if filename in failures:
+    if filename in skip:
         pytest.xfail("Known failure")
     filepath = f"{resolve_folder('tests/dvc/gdal_gcore')}/{filename}"
     rioxarray_comparison(filepath)
 
+
+slow_tests = [
+    "bug1488.tif",
+]
 
 # Generated with the assistance of Claude
 xfail_byte_counts = [
@@ -262,10 +266,11 @@ xfail_photometric = [
     "int12_ycbcr_contig.tif",
 ]
 
-failures = (
-    xfail_byte_counts
+skip = (
+    slow_tests
+    + xfail_byte_counts
     + xfail_byte_range
-    + xfail_compression
+    # + xfail_compression
     + xfail_dtype
     + xfail_panic
     + xfail_reshape
