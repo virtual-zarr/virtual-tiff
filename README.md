@@ -20,10 +20,9 @@ First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
 ## Getting started
 
 1. Clone the repository: `git clone https://github.com/maxrjones/virtual-tiff.git`.
-2. Setup virtual env using uv: `uv sync  --dev`.
-3. Pull baseline image data from dvc remote `uv run --dev dvc pull` WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
-4. Run the test suite using `uv run --dev pytest --verbose` WARNING: Some tests will fail due to incomplete status of the implementation.
-4. Start a shell if needed in the development environment using `uv run --dev zsh`.
+2. Pull baseline image data from dvc remote `pixi run -e test download-test-images` WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
+3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
+4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
 
 ## License
 

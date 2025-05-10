@@ -14,26 +14,44 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    name: python
+    name: ${{ matrix.environment }}-build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
-      fail-fast: false
+      matrix:
+        environment: [test-py311, test-py312]
     steps:
       - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: v0.41.4
+          environments: ${{ matrix.environment }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: List installed libraries
+        run: |
+          pixi install --environment ${{ matrix.environment }}
+          pixi list --environment ${{ matrix.environment }}
 
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Download test images
+        run: |
+          pixi run -e ${{ matrix.environment }} download-test-images
 
-      # Pull baseline image data from dvc remote (DAGsHub)
-      - name: Pull baseline image data from dvc remote
-        run: uv run --dev dvc pull --verbose && ls -lhR tests/dvc/
+      - name: Running Tests
+        run: |
+          pixi run -e ${{ matrix.environment }} run-tests-xml-cov
 
-      - name: Run tests
-        run: uv run --all-groups pytest
+      - name: Upload code coverage to Codecov
+        uses: codecov/codecov-action@v3.1.4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
