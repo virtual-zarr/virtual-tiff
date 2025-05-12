@@ -39,7 +39,7 @@ def _get_compression(ifd, compression):
         )
     if hasattr(ifd, "jpeg_tables") and ifd.jpeg_tables:
         raise NotImplementedError(
-            "JPEG compression with quantization tables are not yet supported."
+            "JPEG compression with quantization tables is not yet supported."
         )
     if codec.codec_name == "imagecodecs_zstd":
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
@@ -91,7 +91,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
             f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
         ) from e
     if ifd.other_tags.get(330):
-        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported")
+        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
         chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
@@ -115,7 +115,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     codecs = []
     if ifd.photometric_interpretation in [6, 8]:
         raise NotImplementedError(
-            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported"
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
         )
     if ifd.predictor == 2:
         from virtual_tiff.codecs import DeltaCodec
