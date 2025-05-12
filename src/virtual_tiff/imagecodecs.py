@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import Self, TypeVar
+from typing import Self
 from warnings import warn
 
 import numpy as np
@@ -14,7 +14,7 @@ from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
 from zarr.core.array_spec import ArraySpec
 from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer
 from zarr.core.buffer.cpu import as_numpy_array_wrapper
-from zarr.core.common import JSON, parse_named_configuration
+from zarr.core.common import JSON
 
 CODEC_PREFIX = "imagecodecs_"
 
@@ -27,22 +27,24 @@ def _expect_name_prefix(codec_name: str) -> str:
     return codec_name.removeprefix(CODEC_PREFIX)
 
 
-def _parse_codec_configuration(data: dict[str, JSON]) -> dict[str, JSON]:
-    parsed_name, parsed_configuration = parse_named_configuration(data)
-    if not parsed_name.startswith(CODEC_PREFIX):
-        raise ValueError(
-            f"Expected name to start with '{CODEC_PREFIX}'. Got {parsed_name} instead."
-        )  # pragma: no cover
-    id = _expect_name_prefix(parsed_name)
-    return {"id": id, **parsed_configuration}
-
-
 @dataclass(frozen=True)
 class _ImageCodecsCodec:
     codec_name: str
-    codec_config: dict[str, JSON]
+    codec_config: JSON
 
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init_subclass__(cls, *, codec_name: str | None = None, **kwargs):
+        """To be used only when creating the actual public-facing codec class."""
+        super().__init_subclass__(**kwargs)
+        if codec_name is not None:
+            namespace = codec_name
+
+            cls_name = f"{CODEC_PREFIX}{namespace}.{cls.__name__}"
+            cls.codec_name = f"{CODEC_PREFIX}{namespace}"
+            cls.__doc__ = f"""
+            See :class:`{cls_name}` for more details and parameters.
+            """
+
+    def __init__(self, **codec_config: JSON) -> None:
         if not self.codec_name:
             raise ValueError(
                 "The codec name needs to be supplied through the `codec_name` attribute."
@@ -50,7 +52,10 @@ class _ImageCodecsCodec:
         unprefixed_codec_name = _expect_name_prefix(self.codec_name)
 
         if "id" not in codec_config:
-            codec_config = {"id": unprefixed_codec_name, **codec_config}
+            codec_config = {
+                "id": unprefixed_codec_name,  # type: ignore
+                **codec_config,
+            }
         elif codec_config["id"] != unprefixed_codec_name:
             raise ValueError(
                 f"Codec id does not match {unprefixed_codec_name}. Got: {codec_config['id']}."
@@ -67,7 +72,6 @@ class _ImageCodecsCodec:
     def _codec(self) -> numcodecs.abc.Codec:
         codec_config = self.codec_config["configuration"]
         codec_config["id"] = self.codec_config["name"]
-        codec_config.pop("name")
         return numcodecs.get_codec(codec_config)
 
     @classmethod
@@ -88,7 +92,7 @@ class _ImageCodecsCodec:
 
 
 class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -114,7 +118,7 @@ class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
 
 
 class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -135,7 +139,7 @@ class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
 
 
 class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -149,92 +153,89 @@ class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
 
 
 # array-to-array codecs ("filters")
-class Delta(_ImageCodecsArrayArrayCodec):
-    codec_name = f"{CODEC_PREFIX}delta"
-
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
-        super().__init__(**codec_config)
-
+class DeltaCodec(_ImageCodecsArrayArrayCodec, codec_name="delta"):
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
         return chunk_spec
 
 
-class FloatPred(_ImageCodecsArrayArrayCodec):
-    codec_name = f"{CODEC_PREFIX}floatpred"
-
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
-        super().__init__(**codec_config)
-
+class FloatPredCodec(_ImageCodecsArrayArrayCodec, codec_name="floatpred"):
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
         return chunk_spec
 
 
-T = TypeVar("T", bound=_ImageCodecsCodec)
+# bytes-to-bytes codecs
 
 
-def _add_docstring(cls: type[T], ref_class_name: str) -> type[T]:
-    cls.__doc__ = f"""
-        See :class:`{ref_class_name}` for more details and parameters.
-        """
-    return cls
+class DeflateCodec(_ImageCodecsBytesBytesCodec, codec_name="deflate"):
+    pass
 
 
-def _make_bytes_bytes_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsBytesBytesCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
-
-    class _Codec(_ImageCodecsBytesBytesCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
+class JetRawCodec(_ImageCodecsBytesBytesCodec, codec_name="jetraw"):
+    pass
 
 
-def _make_array_array_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsArrayArrayCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
-
-    class _Codec(_ImageCodecsArrayArrayCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
+class JpegCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg"):
+    pass
 
 
-def _make_array_bytes_codec(
-    codec_name: str, cls_name: str
-) -> type[_ImageCodecsArrayBytesCodec]:
-    # rename for class scope
-    _codec_name = CODEC_PREFIX + codec_name
-
-    class _Codec(_ImageCodecsArrayBytesCodec):
-        codec_name = _codec_name
-
-        def __init__(self, **codec_config: dict[str, JSON]) -> None:
-            super().__init__(**codec_config)
-
-    _Codec.__name__ = cls_name
-    return _Codec
+class Jpeg8Codec(_ImageCodecsBytesBytesCodec, codec_name="jpeg8"):
+    pass
 
 
-LZW = _add_docstring(_make_bytes_bytes_codec("lzw", "LZW"), "imagecodecs.lzw")
-Deflate = _add_docstring(
-    _make_bytes_bytes_codec("deflate", "Deflate"), "imagecodecs.deflate"
-)
-Zstd = _add_docstring(_make_bytes_bytes_codec("zstd", "Zstd"), "imagecodecs.zstd")
+class Jpeg2KCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg2k"):
+    pass
 
-__all__ = ["Delta", "LZW", "Zstd", "Deflate", "FloatPred"]
+
+class JpegXRCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxr"):
+    pass
+
+
+class JpegXLCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxl"):
+    pass
+
+
+class LercCodec(_ImageCodecsBytesBytesCodec, codec_name="lerc"):
+    pass
+
+
+class LZWCodec(_ImageCodecsBytesBytesCodec, codec_name="lzw"):
+    pass
+
+
+class PackBitsCodec(_ImageCodecsBytesBytesCodec, codec_name="packbits"):
+    pass
+
+
+class PngCodec(_ImageCodecsBytesBytesCodec, codec_name="png"):
+    pass
+
+
+class WebpCodec(_ImageCodecsBytesBytesCodec, codec_name="webp"):
+    pass
+
+
+class ZstdCodec(_ImageCodecsBytesBytesCodec, codec_name="zstd"):
+    pass
+
+
+__all__ = [
+    "DeflateCodec",
+    "DeltaCodec",
+    "FloatPredCodec",
+    "JetRawCodec",
+    "JpegCodec",
+    "Jpeg8Codec",
+    "Jpeg2KCodec",
+    "JpegXLCodec",
+    "JpegXRCodec",
+    "LercCodec",
+    "LZWCodec",
+    "PackBitsCodec",
+    "PngCodec",
+    "WebpCodec",
+    "ZstdCodec",
+]

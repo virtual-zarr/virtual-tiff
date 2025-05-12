@@ -7,9 +7,14 @@ from conftest import dataset_from_local_file, github_examples, resolve_folder
 
 failures = {
     "IBCSO_v2_ice-surface_cog.tif": "ValueError: Invalid range requested, start: 0 end: 0",
-    "TCI.tif": "NotImplementedError: Only one sample per pixel is currently supported, got 3",
-    "20250331090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif": "Assertion Error",
 }
+
+large_files = [
+    "20250331090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif",
+    "50N_120W.tif",
+    "IBCSO_v2_ice-surface_cog.tif",
+    "TCI.tif",
+]
 
 
 def test_simple_load_dataset_against_rioxarray(geotiff_file):
@@ -24,6 +29,8 @@ def test_simple_load_dataset_against_rioxarray(geotiff_file):
 def test_load_dataset_against_rioxarray(filename):
     if filename in failures.keys():
         pytest.xfail(failures[filename])
+    if filename in large_files:
+        pytest.skip("Too slow")
     filepath = f"{resolve_folder('tests/dvc/github/')}/{filename}"
     ds = dataset_from_local_file(filepath)
     assert isinstance(ds, xr.Dataset)

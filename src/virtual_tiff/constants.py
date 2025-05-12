@@ -1,3 +1,45 @@
+from virtual_tiff.imagecodecs import (
+    WebpCodec,
+    JpegXLCodec,
+    ZstdCodec,
+    JetRawCodec,
+    LZWCodec,
+    PngCodec,
+    LercCodec,
+    Jpeg2KCodec,
+    PackBitsCodec,
+    JpegCodec,
+    JpegXRCodec,
+    Jpeg8Codec,
+)
+from numcodecs.zarr3 import Zlib, LZMA
+
+COMPRESSORS = {
+    1: None,
+    8: Zlib,
+    32946: Zlib,
+    34925: LZMA,
+    50013: Zlib,  # pixtiff
+    5: LZWCodec,
+    7: JpegCodec,
+    22610: JpegXRCodec,
+    32773: PackBitsCodec,
+    33003: Jpeg2KCodec,
+    33004: Jpeg2KCodec,
+    33005: Jpeg2KCodec,
+    33007: JpegCodec,
+    34712: Jpeg2KCodec,
+    34887: LercCodec,
+    34892: Jpeg8Codec,
+    34933: PngCodec,
+    34934: JpegXRCodec,
+    48124: JetRawCodec,
+    50000: ZstdCodec,  # numcodecs.zstd fails w/ unknown sizes
+    50001: WebpCodec,
+    50002: JpegXLCodec,
+    52546: JpegXLCodec,
+}
+
 # https://github.com/cgohlke/tifffile/blob/master/tifffile/tifffile.py#L7901-L7986
 # Map SampleFormat and BitsPerSample tags to numpy dtype
 SAMPLE_DTYPES = {

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from virtual_tiff.constants import SAMPLE_DTYPES
 from virtual_tiff.utils import convert_obstore_to_async_tiff_store
+from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
+from virtual_tiff.imagecodecs import ZstdCodec
 import math
-from typing import TYPE_CHECKING, Any, Iterable
-
+from typing import TYPE_CHECKING, Any, Iterable, Tuple
+from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 import numpy as np
 from urllib.parse import urlparse
@@ -15,8 +16,8 @@ from virtualizarr.manifests import (
     ManifestGroup,
     ManifestStore,
 )
-from virtualizarr.manifests.utils import create_v3_array_metadata
 from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_store
+from zarr.codecs import BytesCodec
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory
@@ -32,22 +33,20 @@ if TYPE_CHECKING:
 
 
 def _get_compression(ifd, compression):
-    if compression in (2, 3, 4):
-        raise NotImplementedError("CCITT compression is not yet supported")
-    elif compression == 5:
-        return dict(name="imagecodecs_lzw")
-    elif compression in (6, 7):  # 6 is old style, 7 in new style
-        raise NotImplementedError("JPEG compression is not yet supported")
-    elif compression == 8:  # Deflate (zlib), Adobe variant
-        return dict(name="imagecodecs_deflate")
-    elif compression == 32773:
-        return NotImplementedError("Packbits compression is not yet supported")
-    elif compression == 50000:
+    codec = COMPRESSORS.get(compression)
+    if not codec:
+        raise ValueError(
+            f"TIFF has compressor tag {compression}, which is not recognized. Please raise an issue for support."
+        )
+    if hasattr(ifd, "jpeg_tables") and ifd.jpeg_tables:
+        raise NotImplementedError(
+            "JPEG compression with quantization tables is not yet supported."
+        )
+    if codec.codec_name == "imagecodecs_zstd":
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
-        level = ifd.other_tags.get("65564", 9)
-        return dict(name="imagecodecs_zstd", level=level)
+        return ZstdCodec(level=ifd.other_tags.get("65564", 9))
     else:
-        raise ValueError(f"Compression {compression} not recognized")
+        return codec()
 
 
 def _construct_chunk_manifest(
@@ -83,8 +82,7 @@ async def _open_tiff(
 
 
 def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
-    shape = (ifd.image_height, ifd.image_width)
-
+    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
     try:
         dtype = np.dtype(
             SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
@@ -93,45 +91,71 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
         ) from e
-    if ifd.samples_per_pixel > 1:
-        raise NotImplementedError(
-            f"Only one sample per pixel is currently supported, got {ifd.samples_per_pixel}"
-        )
+    if ifd.other_tags.get(330):
+        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
+    dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
-        chunks = (ifd.tile_height, ifd.tile_width)
+        chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
         offsets = ifd.tile_offsets
         byte_counts = ifd.tile_byte_counts
     elif ifd.rows_per_strip:
         chunks = (ifd.rows_per_strip, ifd.image_width)
         offsets = ifd.strip_offsets
         byte_counts = ifd.strip_byte_counts
+    else:
+        raise NotImplementedError(
+            "TIFFs without byte counts and offsets aren't supported"
+        )
+    if ifd.samples_per_pixel > 1:
+        shape = (int(ifd.samples_per_pixel),) + shape
+        chunks = (int(ifd.samples_per_pixel),) + chunks
+        dimension_names = ("band",) + dimension_names
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = []
+    if ifd.photometric_interpretation in [6, 8]:
+        raise NotImplementedError(
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
+        )
     if ifd.predictor == 2:
-        codec = dict(name="imagecodecs_delta", dtype=dtype.str)
-        codecs.append(codec)
+        from virtual_tiff.codecs import DeltaCodec
+
+        codecs.append(DeltaCodec())
     elif ifd.predictor == 3:
-        codec = dict(name="imagecodecs_floatpred", dtype=dtype.str, shape=chunks)
+        from virtual_tiff.imagecodecs import FloatPredCodec
+
+        codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
     compression = ifd.compression
+    if ifd.planar_configuration == 1 and ifd.samples_per_pixel > 1:
+        from zarr.codecs import TransposeCodec
+        from virtual_tiff.codecs import ChunkyCodec
+
+        codecs.append(TransposeCodec(order=(0, *tuple(range(1, len(shape)))[::-1])))
+        codecs.append(ChunkyCodec())
+    else:
+        codecs.append(BytesCodec())
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     # # Use CF style fill value for GDAL fill value
     # gdal_fill_value = ifd.other_tags.get(42113, None)
     # if gdal_fill_value:
     #     attributes["_FillValue"] = FillValueCoder.encode(gdal_fill_value, dtype)
-    dimension_names = ("y", "x")  # Following rioxarray's behavior
 
-    metadata = create_v3_array_metadata(
+    metadata = ArrayV3Metadata(
         shape=shape,
         data_type=dtype,
-        chunk_shape=chunks,
+        chunk_grid={
+            "name": "regular",
+            "configuration": {"chunk_shape": chunks},
+        },
+        chunk_key_encoding={"name": "default"},
         fill_value=None,
         codecs=codecs,
-        dimension_names=dimension_names,
         attributes=None,
+        dimension_names=dimension_names,
+        storage_transformers=None,
     )
     return ManifestArray(metadata=metadata, chunkmanifest=chunk_manifest)
 
