@@ -51,7 +51,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: git+https://github.com/zarr-developers/VirtualiZarr#627a9049e9eb0f2e69a40f3d511ce7ebac3ee45d
       - pypi: https://files.pythonhosted.org/packages/a4/1e/96fd96419fec1a37da998a1ca3d558f2cae2f6f3cd5015170371b05a2b6b/xarray-2025.4.0-py3-none-any.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: .
       osx-64:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-hfdf4475_7.conda
@@ -91,7 +91,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: git+https://github.com/zarr-developers/VirtualiZarr#627a9049e9eb0f2e69a40f3d511ce7ebac3ee45d
       - pypi: https://files.pythonhosted.org/packages/a4/1e/96fd96419fec1a37da998a1ca3d558f2cae2f6f3cd5015170371b05a2b6b/xarray-2025.4.0-py3-none-any.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: .
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-h99b78c6_7.conda
@@ -131,7 +131,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e5/4d/2e577f6db7aa0f932d19f799c18f604b2b302c65f733419b900ec07dbade/universal_pathlib-0.2.6-py3-none-any.whl
       - pypi: git+https://github.com/zarr-developers/VirtualiZarr#627a9049e9eb0f2e69a40f3d511ce7ebac3ee45d
       - pypi: https://files.pythonhosted.org/packages/a4/1e/96fd96419fec1a37da998a1ca3d558f2cae2f6f3cd5015170371b05a2b6b/xarray-2025.4.0-py3-none-any.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: .
   test:
     channels:
@@ -369,7 +369,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2a/5a/04cde32b07a7431d4ed0553a76fdb7a61270e78c5fd5a603e190ac389f14/wrapt-1.17.2-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/15/45/212604d3142d84b4065d5f8cab6582ed3d78e4cc250568ef2a36fe1cf0a5/yarl-1.20.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-64:
@@ -592,7 +592,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/18/75ddc64c3f63988f5a1d7e10fb204ffe5762bc663f8023f18ecaf31a332e/wrapt-1.17.2-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/60/c3/9e776e98ea350f76f94dd80b408eaa54e5092643dbf65fd9babcffb60509/yarl-1.20.0-cp312-cp312-macosx_10_13_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-arm64:
@@ -815,7 +815,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/36/89/0aae34c10fe524cce30fe5fc433210376bce94cf74d05b0d68344c8ba46e/wrapt-1.17.2-cp313-cp313-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/cd/57/92e83538580a6968b2451d6c89c5579938a7309d4785748e8ad42ddafdce/yarl-1.20.0-cp313-cp313-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
   test-py311:
@@ -1054,7 +1054,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b4/b0/9fc566b0fe08b282c850063591a756057c3247b2362b9286429ec5bf1721/wrapt-1.17.2-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9c/85/d793a703cf4bd0d4cd04e4b13cc3d44149470f790230430331a0c1f52df5/yarl-1.20.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-64:
@@ -1277,7 +1277,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/ff/149aba8365fdacef52b31a258c4dc1c57c79759c335eff0b3316a2664a64/wrapt-1.17.2-cp311-cp311-macosx_10_9_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/ba/81/315a3f6f95947cfbf37c92d6fbce42a1a6207b6c38e8c2b452499ec7d449/yarl-1.20.0-cp311-cp311-macosx_10_9_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-arm64:
@@ -1500,7 +1500,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/65/46/5a917ce85b5c3b490d35c02bf71aedaa9f2f63f2d15d9949cc4ba56e8ba9/wrapt-1.17.2-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/ad/17/9b64e575583158551b72272a1023cdbd65af54fe13421d856b2850a6ddb7/yarl-1.20.0-cp311-cp311-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
   test-py312:
@@ -1739,7 +1739,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2a/5a/04cde32b07a7431d4ed0553a76fdb7a61270e78c5fd5a603e190ac389f14/wrapt-1.17.2-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/15/45/212604d3142d84b4065d5f8cab6582ed3d78e4cc250568ef2a36fe1cf0a5/yarl-1.20.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-64:
@@ -1962,7 +1962,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/18/75ddc64c3f63988f5a1d7e10fb204ffe5762bc663f8023f18ecaf31a332e/wrapt-1.17.2-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/60/c3/9e776e98ea350f76f94dd80b408eaa54e5092643dbf65fd9babcffb60509/yarl-1.20.0-cp312-cp312-macosx_10_13_x86_64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
       osx-arm64:
@@ -2185,7 +2185,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/2a/97928387d6ed1c1ebbfd4efc4133a0633546bec8481a2dd5ec961313a1c7/wrapt-1.17.2-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/0c/5b/45cdfb64a3b855ce074ae607b9fc40bc82e7613b94e7612b030255c93a09/yarl-1.20.0-cp312-cp312-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+      - pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
       - pypi: https://files.pythonhosted.org/packages/a7/aa/47f00f32605177a945f3a1b36a1b2bb9a39260566541280fcee27cbff5cf/zc.lockfile-3.0.post1-py3-none-any.whl
       - pypi: .
 packages:
@@ -9235,8 +9235,8 @@ packages:
   requires_python: '>=3.6'
 - pypi: .
   name: virtual-tiff
-  version: 0.1.0b2.dev5+g40997bc.d20250510
-  sha256: b6429ea8e95c065e829227f68919ce68759a11c4657568cdc3127731fe142f48
+  version: 0.1.0b2.dev9+ga0731c7.d20250512
+  sha256: 0167c1a2b56d1b374a16b26a8730dbb0aff4b98487acf082df431daf934c57ff
   requires_dist:
   - async-tiff
   - imagecodecs
@@ -9543,9 +9543,9 @@ packages:
   - multidict>=4.0
   - propcache>=0.2.1
   requires_python: '>=3.9'
-- pypi: git+https://github.com/zarr-developers/zarr-python#5ff3fbe5fe1488310301e9d2ae56a9880d1ddfb2
+- pypi: git+https://github.com/zarr-developers/zarr-python#520bc1f6c2af511832c3bab6da1eb5e2e2c38900
   name: zarr
-  version: 3.0.8.dev14+g5ff3fbe5
+  version: 3.0.8.dev15+g520bc1f6
   requires_dist:
   - donfig>=0.8
   - numcodecs[crc32c]>=0.14

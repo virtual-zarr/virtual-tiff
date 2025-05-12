@@ -131,3 +131,5 @@ allow-direct-references = true
 "virtual_tiff.ChunkyCodec" = "virtual_tiff.codecs:ChunkyCodec"
 "virtual_tiff.DeltaCodec" = "virtual_tiff.codecs:DeltaCodec"
 
+[tool.codespell]
+skip = 'pixi.lock'
