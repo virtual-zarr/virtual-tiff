@@ -30,7 +30,7 @@ def _expect_name_prefix(codec_name: str) -> str:
 @dataclass(frozen=True)
 class _ImageCodecsCodec:
     codec_name: str
-    codec_config: dict[str, JSON]
+    codec_config: JSON
 
     def __init_subclass__(cls, *, codec_name: str | None = None, **kwargs):
         """To be used only when creating the actual public-facing codec class."""
@@ -44,7 +44,7 @@ class _ImageCodecsCodec:
             See :class:`{cls_name}` for more details and parameters.
             """
 
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         if not self.codec_name:
             raise ValueError(
                 "The codec name needs to be supplied through the `codec_name` attribute."
@@ -92,7 +92,7 @@ class _ImageCodecsCodec:
 
 
 class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -118,7 +118,7 @@ class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
 
 
 class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -139,7 +139,7 @@ class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
 
 
 class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
-    def __init__(self, **codec_config: dict[str, JSON]) -> None:
+    def __init__(self, **codec_config: JSON) -> None:
         super().__init__(**codec_config)
 
     async def _decode_single(
@@ -168,11 +168,53 @@ class FloatPredCodec(_ImageCodecsArrayArrayCodec, codec_name="floatpred"):
 
 
 # bytes-to-bytes codecs
+
+
+class DeflateCodec(_ImageCodecsBytesBytesCodec, codec_name="deflate"):
+    pass
+
+
+class JetRawCodec(_ImageCodecsBytesBytesCodec, codec_name="jetraw"):
+    pass
+
+
+class JpegCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg"):
+    pass
+
+
+class Jpeg8Codec(_ImageCodecsBytesBytesCodec, codec_name="jpeg8"):
+    pass
+
+
+class Jpeg2KCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg2k"):
+    pass
+
+
+class JpegXRCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxr"):
+    pass
+
+
+class JpegXLCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxl"):
+    pass
+
+
+class LercCodec(_ImageCodecsBytesBytesCodec, codec_name="lerc"):
+    pass
+
+
 class LZWCodec(_ImageCodecsBytesBytesCodec, codec_name="lzw"):
     pass
 
 
-class DeflateCodec(_ImageCodecsBytesBytesCodec, codec_name="deflate"):
+class PackBitsCodec(_ImageCodecsBytesBytesCodec, codec_name="packbits"):
+    pass
+
+
+class PngCodec(_ImageCodecsBytesBytesCodec, codec_name="png"):
+    pass
+
+
+class WebpCodec(_ImageCodecsBytesBytesCodec, codec_name="webp"):
     pass
 
 
@@ -180,4 +222,20 @@ class ZstdCodec(_ImageCodecsBytesBytesCodec, codec_name="zstd"):
     pass
 
 
-__all__ = ["DeltaCodec", "LZWCodec", "ZstdCodec", "DeflateCodec", "FloatPredCodec"]
+__all__ = [
+    "DeflateCodec",
+    "DeltaCodec",
+    "FloatPredCodec",
+    "JetRawCodec",
+    "JpegCodec",
+    "Jpeg8Codec",
+    "Jpeg2KCodec",
+    "JpegXLCodec",
+    "JpegXRCodec",
+    "LercCodec",
+    "LZWCodec",
+    "PackBitsCodec",
+    "PngCodec",
+    "WebpCodec",
+    "ZstdCodec",
+]

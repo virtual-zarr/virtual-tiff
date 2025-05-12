@@ -8,6 +8,14 @@ from conftest import (
 from virtual_tiff.reader import create_manifest_store
 
 
+def match_error(filepath, error, match):
+    with pytest.raises(
+        error,
+        match=match,
+    ):
+        create_manifest_store(filepath=filepath, group=0)
+
+
 def run_gdal_test(filename, filepath):
     if filename in skip:
         pytest.xfail("Known failure")
@@ -15,12 +23,25 @@ def run_gdal_test(filename, filepath):
         pytest.xfail("See https://github.com/maxrjones/virtual-tiff/issues/19")
     filepath = f"{resolve_folder(filepath)}/{filename}"
     if filename in unknown_compressor:
-        with pytest.raises(
+        match_error(
+            filepath,
             ValueError,
-            match="ValueError: TIFF has compressor tag *, which is not recognized. Please raise an issue for support.",
-        ):
-            create_manifest_store(filepath=filename, group=0)
-    rioxarray_comparison(filepath)
+            "TIFF has compressor tag .+, which is not recognized\. Please raise an issue for support\.",
+        )
+    elif filename in jpeg_tables:
+        match_error(
+            filepath,
+            NotImplementedError,
+            "JPEG compression with quantization tables is not yet supported.",
+        )
+    elif filename in YCbCr:
+        match_error(
+            filepath,
+            NotImplementedError,
+            "YCbCr PhotometricInterpretation is not yet supported.",
+        )
+    else:
+        rioxarray_comparison(filepath)
 
 
 @pytest.mark.parametrize("filename", gdal_autotest_examples())
@@ -35,13 +56,42 @@ def test_against_rioxarray_gdal_gcore(filename):
 
 corrupted = [
     "lzw_corrupted.tif",
+    "byte_buggy_packbits.tif",
+    "byte_zstd_corrupted2.tif",
+    "byte_zstd_corrupted.tif",
+    "unsupported_codec_jp2000.tif",
 ]
 jpeg_tables = [
     "rgbsmall_JPEG.tif",
     "byte_JPEG_tiled.tif",
+    "byte_JPEG.tif",
+    "byte_ovr_jpeg_tablesmode1.tif",
+    "rgbsmall_JPEG_tiled.tif",
+    "stefan_full_rgba_jpeg_contig.tif",
+    "byte_ovr_jpeg_tablesmode_not_correctly_set_on_ovr.tif",
+    "tif_jpeg_too_big_last_stripe.tif",
+    "byte_ovr_jpeg_tablesmode2.tif",
+    "byte_ovr_jpeg_tablesmode3.tif",
+    "irregular_tile_size_jpeg_in_tiff.tif",
+    "byte_jpg_unusual_jpegtable.tif",
 ]
 unknown_compressor = [
     "unsupported_codec_unknown.tif",
+    "thunder.tif",
+    "next_default_case.tif",
+    "next_literalspan.tif",
+    "slim_g4.tif",
+    "scanline_more_than_2GB.tif",
+    "next_literalrow.tif",
+]
+YCbCr = [
+    "rgbsmall_JPEG_ycbcr.tif",
+    "zackthecat_corrupted.tif",
+    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
+    "sasha.tif",
+    "zackthecat.tif",
+    "ycbcr_with_mask.tif",
+    "mandrilmini_12bitjpeg.tif",
 ]
 slow_tests = [
     "bug1488.tif",
@@ -74,81 +124,6 @@ xfail_byte_range = [
     "cog_sparse_strile_arrays_zeroified_when_possible.tif",
     "tiled_bad_offset.tif",
 ]
-
-xfail_compression = [
-    "byte_JXL_tiled.tif",
-    "unsupported_codec_unknown.tif",
-    "byte_LERC_DEFLATE_tiled.tif",
-    "byte_LERC.tif",
-    "byte_LERC_DEFLATE.tif",
-    "byte_JPEG_tiled.tif",
-    "byte_LERC_ZSTD.tif",
-    "byte_JXL.tif",
-    "byte_LERC_ZSTD_tiled.tif",
-    "byte_JPEG.tif",
-    "byte_ovr_jpeg_tablesmode1.tif",
-    "byte_ovr_jpeg_tablesmode_not_correctly_set_on_ovr.tif",
-    "byte_ovr_jpeg_tablesmode0.tif",
-    "tif_jpeg_too_big_last_stripe.tif",
-    "byte_ovr_jpeg_tablesmode2.tif",
-    "byte_ovr_jpeg_tablesmode3.tif",
-    "byte_jpg_tablesmodezero.tif",
-    "byte_jpg_unusual_jpegtable.tif",
-    "slim_g4.tif",
-    "byte_jxl_dng_1_7_52546.tif",
-    "byte_jxl_deprecated_50002.tif",
-    "byte_LZMA_tiled.tif",
-    "unsupported_codec_jp2000.tif",
-    "byte_LZMA.tif",
-    "byte_LERC_tiled.tif",
-    "thunder.tif",
-    "next_literalspan.tif",
-    "next_default_case.tif",
-    "byte_lerc.tif",
-    "irregular_tile_size_jpeg_in_tiff.tif",
-    # "Compression X not recognized" errors
-    "rgbsmall_LZMA.tif",
-    "rgbsmall_JXL_tiled.tif",
-    "rgbsmall_LERC_ZSTD_tiled.tif",
-    "bug1488.tif",
-    "rgbsmall_JXL.tif",
-    "rgbsmall_WEBP.tif",
-    "rgbsmall_LERC_DEFLATE.tif",
-    "rgbsmall_LERC.tif",
-    "rgbsmall_WEBP_tiled.tif",
-    "rgbsmall_LERC_tiled.tif",
-    "rgbsmall_LERC_DEFLATE_tiled.tif",
-    "rgbsmall_LZMA_tiled.tif",
-    "rgbsmall_LERC_ZSTD.tif",
-    "jxl-rgbi.tif",
-    "bug4468.tif",
-    "tif_webp.tif",
-    "next_literalrow.tif",
-    "tif_webp_huge_single_strip.tif",
-    "webp_lossless_rgba_alpha_fully_opaque.tif",
-    # "X compression is not yet supported" errors
-    "rgbsmall_JPEG.tif",
-    "rgbsmall_JPEG_ycbcr.tif",
-    "zackthecat_corrupted.tif",
-    "mandrilmini_12bitjpeg.tif",
-    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
-    "sasha.tif",
-    "stefan_full_rgba_jpeg_contig.tif",
-    "rgbsmall_JPEG_tiled.tif",
-    "zackthecat.tif",
-    "ycbcr_with_mask.tif",
-    "scanline_more_than_2GB.tif",
-    "test_gdal2tiles_exclude_transparent.tif",
-    "byte_buggy_packbits.tif",
-    "contig_strip.tif",
-    "contig_tiled.tif",
-    "3376.tif",
-    # Imagecodecs error
-    "lzw_corrupted.tif",
-    "byte_zstd_corrupted2.tif",
-    "byte_zstd_corrupted.tif",
-]
-
 xfail_reshape = [
     "test_gdal2tiles_exclude_transparent.tif",
     "isis3_geotiff.tif",
@@ -237,6 +212,7 @@ xfail_reshape = [
     "webp_lossless_rgba_alpha_fully_opaque.tif",
     "contig_strip.tif",
     "contig_tiled.tif",
+    "bug4468.tif",
 ]
 xfail_panic = [
     "missing_tilebytecounts_and_offsets.tif",
@@ -304,7 +280,6 @@ skip = (
     + corrupted
     + xfail_byte_counts
     + xfail_byte_range
-    + xfail_compression
     + xfail_dtype
     + xfail_panic
     + xfail_reshape

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from virtual_tiff.constants import SAMPLE_DTYPES
+from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
+from virtual_tiff.imagecodecs import ZstdCodec
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
 from zarr.core.metadata.v3 import ArrayV3Metadata
@@ -31,30 +32,20 @@ if TYPE_CHECKING:
 
 
 def _get_compression(ifd, compression):
-    if compression in (2, 3, 4):
-        raise NotImplementedError("CCITT compression is not yet supported")
-    elif compression == 5:
-        from virtual_tiff.imagecodecs import LZWCodec
-
-        return LZWCodec()
-    elif compression in (6, 7):  # 6 is old style, 7 in new style
-        raise NotImplementedError("JPEG compression is not yet supported")
-    elif compression == 8:  # Deflate (zlib), Adobe variant
-        from virtual_tiff.imagecodecs import DeflateCodec
-
-        return DeflateCodec()
-    elif compression == 32773:
-        raise NotImplementedError("Packbits compression is not yet supported")
-    elif compression == 50000:
-        # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
-        level = ifd.other_tags.get("65564", 9)
-        from virtual_tiff.imagecodecs import ZstdCodec
-
-        return ZstdCodec(level=level)
-    else:
+    codec = COMPRESSORS.get(compression)
+    if not codec:
         raise ValueError(
             f"TIFF has compressor tag {compression}, which is not recognized. Please raise an issue for support."
         )
+    if hasattr(ifd, "jpeg_tables") and ifd.jpeg_tables:
+        raise NotImplementedError(
+            "JPEG compression with quantization tables is not yet supported."
+        )
+    if codec.codec_name == "imagecodecs_zstd":
+        # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
+        return ZstdCodec(level=ifd.other_tags.get("65564", 9))
+    else:
+        return codec()
 
 
 def _construct_chunk_manifest(
@@ -100,7 +91,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
             f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
         ) from e
     if ifd.other_tags.get(330):
-        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported")
+        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
         chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
@@ -124,7 +115,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     codecs = []
     if ifd.photometric_interpretation in [6, 8]:
         raise NotImplementedError(
-            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported"
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
         )
     if ifd.predictor == 2:
         from virtual_tiff.codecs import DeltaCodec
