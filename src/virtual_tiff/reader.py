@@ -34,7 +34,9 @@ if TYPE_CHECKING:
 def _get_compression(ifd, compression):
     codec = COMPRESSORS.get(compression)
     if not codec:
-        raise ValueError(f"Compression {compression} not recognized")
+        raise ValueError(
+            f"TIFF has compressor tag {compression}, which is not recognized. Please raise an issue for support."
+        )
     if hasattr(ifd, "jpeg_tables") and ifd.jpeg_tables:
         raise NotImplementedError(
             "JPEG compression with quantization tables are not yet supported."
