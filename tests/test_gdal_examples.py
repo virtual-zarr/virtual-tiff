@@ -5,24 +5,48 @@ from conftest import (
     resolve_folder,
     rioxarray_comparison,
 )
+from virtual_tiff.reader import create_manifest_store
+
+
+def run_gdal_test(filename, filepath):
+    if filename in skip:
+        pytest.xfail("Known failure")
+    if filename in xfail_pred2:
+        pytest.xfail("See https://github.com/maxrjones/virtual-tiff/issues/19")
+    filepath = f"{resolve_folder(filepath)}/{filename}"
+    if filename in unknown_compressor:
+        with pytest.raises(
+            ValueError,
+            match="ValueError: TIFF has compressor tag *, which is not recognized. Please raise an issue for support.",
+        ):
+            create_manifest_store(filepath=filename, group=0)
+    rioxarray_comparison(filepath)
 
 
 @pytest.mark.parametrize("filename", gdal_autotest_examples())
 def test_against_rioxarray_gdal_autotest(filename):
-    if filename in failures:
-        pytest.xfail("Known failure")
-    filepath = f"{resolve_folder('tests/dvc/gdal_autotest')}/{filename}"
-    rioxarray_comparison(filepath)
+    run_gdal_test(filename, "tests/dvc/gdal_autotest")
 
 
 @pytest.mark.parametrize("filename", gdal_gcore_examples())
 def test_against_rioxarray_gdal_gcore(filename):
-    if filename in failures:
-        pytest.xfail("Known failure")
-    filepath = f"{resolve_folder('tests/dvc/gdal_gcore')}/{filename}"
-    rioxarray_comparison(filepath)
+    run_gdal_test(filename, "tests/dvc/gdal_gcore")
 
 
+corrupted = [
+    "lzw_corrupted.tif",
+]
+jpeg_tables = [
+    "rgbsmall_JPEG.tif",
+    "byte_JPEG_tiled.tif",
+]
+unknown_compressor = [
+    "unsupported_codec_unknown.tif",
+]
+slow_tests = [
+    "bug1488.tif",
+]
+xfail_pred2 = ["float32_LZW_predictor_2.tif", "test_hgrid_with_subgrid.tif"]
 # Generated with the assistance of Claude
 xfail_byte_counts = [
     "VH.tif",
@@ -50,6 +74,7 @@ xfail_byte_range = [
     "cog_sparse_strile_arrays_zeroified_when_possible.tif",
     "tiled_bad_offset.tif",
 ]
+
 xfail_compression = [
     "byte_JXL_tiled.tif",
     "unsupported_codec_unknown.tif",
@@ -125,6 +150,7 @@ xfail_compression = [
 ]
 
 xfail_reshape = [
+    "test_gdal2tiles_exclude_transparent.tif",
     "isis3_geotiff.tif",
     "bug_6526_input.tif",
     "pyramid_shaded_ref.tif",
@@ -208,6 +234,9 @@ xfail_reshape = [
     "ycbcr_42_lzw.tif",
     "oddsize_1bit2b.tif",
     "IMG-md_alos.tif",
+    "webp_lossless_rgba_alpha_fully_opaque.tif",
+    "contig_strip.tif",
+    "contig_tiled.tif",
 ]
 xfail_panic = [
     "missing_tilebytecounts_and_offsets.tif",
@@ -250,6 +279,14 @@ xfail_gdal_cannot_read = [
     "stefan_full_greyalpha_uint64_LZW_predictor_2.tif",
     "float64_LZW_predictor_2.tif",
     "leak-ZIPSetupDecode.tif",
+    # Cannot open TIFF file due to missing codec JXL
+    "rgbsmall_JXL_tiled.tif",
+    "byte_jxl_dng_1_7_52546.tif",
+    "byte_jxl_deprecated_50002.tif",
+    "byte_JXL_tiled.tif",
+    "rgbsmall_JXL.tif",
+    "byte_JXL.tif",
+    "jxl-rgbi.tif",
 ]
 xfail_endian = [
     "int16_big_endian.tif",
@@ -262,8 +299,10 @@ xfail_photometric = [
     "int12_ycbcr_contig.tif",
 ]
 
-failures = (
-    xfail_byte_counts
+skip = (
+    slow_tests
+    + corrupted
+    + xfail_byte_counts
     + xfail_byte_range
     + xfail_compression
     + xfail_dtype
