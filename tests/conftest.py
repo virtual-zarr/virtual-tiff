@@ -4,7 +4,7 @@ import pytest
 import xarray as xr
 import numpy as np
 import rioxarray
-from virtual_tiff.reader import create_manifest_store
+from virtual_tiff.parser import create_manifest_store
 
 
 @pytest.fixture

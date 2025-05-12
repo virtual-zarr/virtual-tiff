@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import xarray as xr
-from virtual_tiff.reader import create_manifest_store
+from virtual_tiff.parser import create_manifest_store
 import rioxarray
 from conftest import dataset_from_local_file, github_examples, resolve_folder
 

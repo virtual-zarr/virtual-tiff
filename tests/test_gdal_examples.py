@@ -5,7 +5,7 @@ from conftest import (
     resolve_folder,
     rioxarray_comparison,
 )
-from virtual_tiff.reader import create_manifest_store
+from virtual_tiff.parser import create_manifest_store
 
 
 def match_error(filepath, error, match):
