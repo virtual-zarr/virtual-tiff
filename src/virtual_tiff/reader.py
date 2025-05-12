@@ -52,7 +52,9 @@ def _get_compression(ifd, compression):
 
         return ZstdCodec(level=level)
     else:
-        raise ValueError(f"Compression {compression} not recognized")
+        raise ValueError(
+            f"TIFF has compressor tag {compression}, which is not recognized. Please raise an issue for support."
+        )
 
 
 def _construct_chunk_manifest(
