@@ -2,7 +2,6 @@ from __future__ import annotations
 from async_tiff.store import (
     AzureStore,
     GCSStore,
-    HTTPStore,
     LocalStore,
     S3Store,
 )
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
 
 store_matching = {
     "LocalStore": LocalStore,
-    "HTTPStore": HTTPStore,
     "AzureStore": AzureStore,
     "S3Store": S3Store,
     "GCSStore": GCSStore,
