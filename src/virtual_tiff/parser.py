@@ -108,7 +108,13 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         )
     if ifd.samples_per_pixel > 1:
         shape = (int(ifd.samples_per_pixel),) + shape
-        chunks = (int(ifd.samples_per_pixel),) + chunks
+        if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 2:
+            # For PlanarConfiguration = 2, the StripOffsets for the component planes are stored
+            # in the indicated order: first the Red component plane StripOffsets, then the Green plane
+            # StripOffsets, then the Blue plane StripOffsets.
+            chunks = (1,) + chunks
+        else:
+            chunks = (int(ifd.samples_per_pixel),) + chunks
         dimension_names = ("band",) + dimension_names
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
@@ -191,6 +197,10 @@ def create_manifest_store(
 ) -> Store:
     if not store:
         store = default_object_store(filepath)
+    urlpath = urlparse(filepath).path
+    endianness = store.get_range(urlpath, start=0, end=2)
+    if endianness == b"MM":
+        raise NotImplementedError("Big endian TIFFs are not yet supported.")
     async_tiff_store = convert_obstore_to_async_tiff_store(store)
     # Create a group containing dataset level metadata and all the manifest arrays
     manifest_group = _construct_manifest_group(
