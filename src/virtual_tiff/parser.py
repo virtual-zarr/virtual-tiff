@@ -10,6 +10,7 @@ import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
+from zarr.abc.codec import BaseCodec
 import numpy as np
 from urllib.parse import urlparse
 
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from zarr.core.abc.store import Store
 
 
-def _get_compression(ifd, compression):
+def _get_compression(ifd: ImageFileDirectory, compression: int):
     codec = COMPRESSORS.get(compression)
     if not codec:
         raise ValueError(
@@ -52,7 +53,9 @@ def _get_compression(ifd, compression):
         return codec()
 
 
-def _get_dtype(sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]):
+def _get_dtype(
+    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]
+) -> np.dtype:
     if not all(x == sample_format[0] for x in sample_format):
         raise ValueError(
             f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple sample formats in a single IFD: {sample_format}"
@@ -67,6 +70,54 @@ def _get_dtype(sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...])
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
         ) from e
+
+
+def _get_chunks_from_tiles(
+    ifd: ImageFileDirectory,
+) -> tuple[tuple[int, ...], list[int], list[int]]:
+    chunks = (ifd.tile_height, ifd.tile_width)
+    offsets = ifd.tile_offsets
+    byte_counts = ifd.tile_byte_counts
+    return chunks, offsets, byte_counts
+
+
+def _get_chunks_from_strips(
+    ifd: ImageFileDirectory, image_height: int
+) -> tuple[tuple[int, ...], list[int], list[int]]:
+    rows_per_strip = ifd.rows_per_strip
+    if rows_per_strip > image_height:
+        chunks = (image_height, ifd.image_width)
+    else:
+        chunks = (rows_per_strip, ifd.image_width)
+    check_no_partial_strips(image_height=image_height, rows_per_strip=chunks[0])
+    offsets = ifd.strip_offsets
+    byte_counts = ifd.strip_byte_counts
+    return chunks, offsets, byte_counts
+
+
+def _get_codecs(ifd: ImageFileDirectory, *, shape, chunks, dtype) -> list[BaseCodec]:
+    codecs = []
+    if ifd.predictor == 2:
+        from virtual_tiff.codecs import DeltaCodec
+
+        codecs.append(DeltaCodec())
+    elif ifd.predictor == 3:
+        from virtual_tiff.imagecodecs import FloatPredCodec
+
+        codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
+        codecs.append(codec)
+    compression = ifd.compression
+    if ifd.planar_configuration == 1 and ifd.samples_per_pixel > 1:
+        from zarr.codecs import TransposeCodec
+        from virtual_tiff.codecs import ChunkyCodec
+
+        codecs.append(TransposeCodec(order=(0, *tuple(range(1, len(shape)))[::-1])))
+        codecs.append(ChunkyCodec())
+    else:
+        codecs.append(BytesCodec())
+    if compression > 1:
+        codecs.append(_get_compression(ifd, compression))
+    return codecs
 
 
 def _construct_chunk_manifest(
@@ -109,21 +160,19 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
-    if ifd.tile_height and ifd.tile_width:
-        chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
-        offsets = ifd.tile_offsets
-        byte_counts = ifd.tile_byte_counts
+    if ifd.tile_height:
+        chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
-        rows_per_strip = ifd.rows_per_strip
-        if rows_per_strip > shape[0]:
-            rows_per_strip = shape[0]
-        check_no_partial_strips(image_height=shape[0], rows_per_strip=rows_per_strip)
-        chunks = (rows_per_strip, ifd.image_width)
-        offsets = ifd.strip_offsets
-        byte_counts = ifd.strip_byte_counts
+        chunks, offsets, byte_counts = _get_chunks_from_strips(
+            ifd, image_height=shape[0]
+        )
     else:
         raise NotImplementedError(
             "TIFFs without byte counts and offsets aren't supported"
+        )
+    if ifd.photometric_interpretation in [6, 8]:
+        raise NotImplementedError(
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
         )
     if ifd.samples_per_pixel > 1:
         shape = (int(ifd.samples_per_pixel),) + shape
@@ -138,31 +187,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
-    codecs = []
-    if ifd.photometric_interpretation in [6, 8]:
-        raise NotImplementedError(
-            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
-        )
-    if ifd.predictor == 2:
-        from virtual_tiff.codecs import DeltaCodec
-
-        codecs.append(DeltaCodec())
-    elif ifd.predictor == 3:
-        from virtual_tiff.imagecodecs import FloatPredCodec
-
-        codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
-        codecs.append(codec)
-    compression = ifd.compression
-    if ifd.planar_configuration == 1 and ifd.samples_per_pixel > 1:
-        from zarr.codecs import TransposeCodec
-        from virtual_tiff.codecs import ChunkyCodec
-
-        codecs.append(TransposeCodec(order=(0, *tuple(range(1, len(shape)))[::-1])))
-        codecs.append(ChunkyCodec())
-    else:
-        codecs.append(BytesCodec())
-    if compression > 1:
-        codecs.append(_get_compression(ifd, compression))
+    codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype)
     # # Use CF style fill value for GDAL fill value
     # gdal_fill_value = ifd.other_tags.get(42113, None)
     # if gdal_fill_value:

@@ -26,7 +26,7 @@ def run_gdal_test(filename, filepath):
         match_error(
             filepath,
             ValueError,
-            "TIFF has compressor tag .+, which is not recognized\. Please raise an issue for support\.",
+            r"TIFF has compressor tag .+, which is not recognized\. Please raise an issue for support\.",
         )
     elif filename in jpeg_tables:
         match_error(
@@ -50,7 +50,7 @@ def run_gdal_test(filename, filepath):
         match_error(
             filepath,
             ValueError,
-            "Zarr's default chunk grid expects all chunks to be equal size, but this TIFF has an image height of (.*?)",
+            r"Zarr's default chunk grid expects all chunks to be equal size, but this TIFF has an image height of (.*?)",
         )
     else:
         rioxarray_comparison(filepath)
