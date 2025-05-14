@@ -1,4 +1,5 @@
 from virtual_tiff.imagecodecs import (
+    DeflateCodec,
     WebpCodec,
     JpegXLCodec,
     ZstdCodec,
@@ -19,7 +20,7 @@ COMPRESSORS = {
     8: Zlib,
     32946: Zlib,
     34925: LZMA,
-    50013: Zlib,  # pixtiff
+    50013: DeflateCodec,  # pixtiff
     5: LZWCodec,
     7: JpegCodec,
     22610: JpegXRCodec,

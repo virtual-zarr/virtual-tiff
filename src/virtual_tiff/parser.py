@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from virtual_tiff.utils import convert_obstore_to_async_tiff_store
+from virtual_tiff.utils import (
+    convert_obstore_to_async_tiff_store,
+    check_no_partial_strips,
+)
 from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
 from virtual_tiff.imagecodecs import ZstdCodec
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
+from zarr.abc.codec import BaseCodec
 import numpy as np
 from urllib.parse import urlparse
 
@@ -32,7 +36,7 @@ if TYPE_CHECKING:
     from zarr.core.abc.store import Store
 
 
-def _get_compression(ifd, compression):
+def _get_compression(ifd: ImageFileDirectory, compression: int):
     codec = COMPRESSORS.get(compression)
     if not codec:
         raise ValueError(
@@ -49,75 +53,50 @@ def _get_compression(ifd, compression):
         return codec()
 
 
-def _construct_chunk_manifest(
-    *,
-    path: str,
-    shape: tuple[int, ...],
-    chunks: tuple[int, ...],
-    offsets: Iterable[int],
-    byte_counts: Iterable[int],
-) -> ChunkManifest:
-    chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
-    offsets = np.array(offsets, dtype=np.uint64).reshape(chunk_manifest_shape)
-    byte_counts = np.array(byte_counts, dtype=np.uint64).reshape(chunk_manifest_shape)
-    # See https://web.archive.org/web/20240329145228/https://www.awaresystems.be/imaging/tiff/tifftags/tileoffsets.html for ordering of offsets.
-    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
-    if np.all(offsets == 0) or np.all(byte_counts == 0):
-        raise NotImplementedError(
-            "TIFFs without byte counts and offsets aren't supported"
+def _get_dtype(
+    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]
+) -> np.dtype:
+    if not all(x == sample_format[0] for x in sample_format):
+        raise ValueError(
+            f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple sample formats in a single IFD: {sample_format}"
         )
-    return ChunkManifest.from_arrays(
-        paths=paths,
-        offsets=offsets,
-        lengths=byte_counts,
-    )
-
-
-async def _open_tiff(
-    *, path: str, store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore
-) -> TIFF:
-    from async_tiff import TIFF
-
-    return await TIFF.open(path, store=store)
-
-
-def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
-    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
+    if not all(x == bits_per_sample[0] for x in bits_per_sample):
+        raise ValueError(
+            f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple bits per sample in a single IFD: {bits_per_sample}"
+        )
     try:
-        dtype = np.dtype(
-            SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
-        )
+        return np.dtype(SAMPLE_DTYPES[(int(sample_format[0]), int(bits_per_sample[0]))])
     except KeyError as e:
         raise ValueError(
-            f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
+            f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
         ) from e
-    if ifd.other_tags.get(330):
-        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
-    dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
-    if ifd.tile_height and ifd.tile_width:
-        chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
-        offsets = ifd.tile_offsets
-        byte_counts = ifd.tile_byte_counts
-    elif ifd.rows_per_strip:
-        chunks = (ifd.rows_per_strip, ifd.image_width)
-        offsets = ifd.strip_offsets
-        byte_counts = ifd.strip_byte_counts
+
+
+def _get_chunks_from_tiles(
+    ifd: ImageFileDirectory,
+) -> tuple[tuple[int, ...], list[int], list[int]]:
+    chunks = (ifd.tile_height, ifd.tile_width)
+    offsets = ifd.tile_offsets
+    byte_counts = ifd.tile_byte_counts
+    return chunks, offsets, byte_counts
+
+
+def _get_chunks_from_strips(
+    ifd: ImageFileDirectory, image_height: int
+) -> tuple[tuple[int, ...], list[int], list[int]]:
+    rows_per_strip = ifd.rows_per_strip
+    if rows_per_strip > image_height:
+        chunks = (image_height, ifd.image_width)
     else:
-        raise NotImplementedError(
-            "TIFFs without byte counts and offsets aren't supported"
-        )
-    if ifd.samples_per_pixel > 1:
-        shape = (int(ifd.samples_per_pixel),) + shape
-        chunks = (int(ifd.samples_per_pixel),) + chunks
-        dimension_names = ("band",) + dimension_names
-    chunk_manifest = _construct_chunk_manifest(
-        path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
-    )
+        chunks = (rows_per_strip, ifd.image_width)
+    check_no_partial_strips(image_height=image_height, rows_per_strip=chunks[0])
+    offsets = ifd.strip_offsets
+    byte_counts = ifd.strip_byte_counts
+    return chunks, offsets, byte_counts
+
+
+def _get_codecs(ifd: ImageFileDirectory, *, shape, chunks, dtype) -> list[BaseCodec]:
     codecs = []
-    if ifd.photometric_interpretation in [6, 8]:
-        raise NotImplementedError(
-            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
-        )
     if ifd.predictor == 2:
         from virtual_tiff.codecs import DeltaCodec
 
@@ -138,6 +117,89 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         codecs.append(BytesCodec())
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
+    return codecs
+
+
+def _add_dim_for_samples_per_pixel(
+    ifd: ImageFileDirectory, shape: tuple[int, ...], chunks: tuple[int, ...]
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    sample_dim_length = int(ifd.samples_per_pixel)
+    shape = (sample_dim_length,) + shape
+    if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 2:
+        # For PlanarConfiguration = 2, the StripOffsets for the component planes are stored
+        # in the indicated order: first the Red component plane StripOffsets, then the Green plane
+        # StripOffsets, then the Blue plane StripOffsets.
+        chunks = (1,) + chunks
+    else:
+        chunks = (sample_dim_length,) + chunks
+    return shape, chunks
+
+
+def _construct_chunk_manifest(
+    *,
+    path: str,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    offsets: Iterable[int],
+    byte_counts: Iterable[int],
+) -> ChunkManifest:
+    chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    offsets = np.array(offsets, dtype=np.uint64)
+    byte_counts = np.array(byte_counts, dtype=np.uint64)
+
+    if np.all(offsets == 0) or np.all(byte_counts == 0):
+        raise NotImplementedError(
+            "TIFFs without byte counts and offsets aren't supported"
+        )
+    offsets = offsets.reshape(chunk_manifest_shape)
+    byte_counts = byte_counts.reshape(chunk_manifest_shape)
+    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
+    return ChunkManifest.from_arrays(
+        paths=paths,
+        offsets=offsets,
+        lengths=byte_counts,
+    )
+
+
+async def _open_tiff(
+    *, path: str, store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore
+) -> TIFF:
+    from async_tiff import TIFF
+
+    return await TIFF.open(path, store=store)
+
+
+def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
+    if ifd.other_tags.get(330):
+        raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
+    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
+    dtype = _get_dtype(
+        sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
+    )
+    dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
+    if ifd.tile_height:
+        chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
+    elif ifd.rows_per_strip:
+        chunks, offsets, byte_counts = _get_chunks_from_strips(
+            ifd, image_height=shape[0]
+        )
+    else:
+        raise NotImplementedError(
+            "TIFFs without byte counts and offsets aren't supported"
+        )
+    if ifd.photometric_interpretation in [6, 8]:
+        raise NotImplementedError(
+            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
+        )
+    if ifd.samples_per_pixel > 1:
+        shape, chunks = _add_dim_for_samples_per_pixel(
+            ifd=ifd, shape=shape, chunks=chunks
+        )
+        dimension_names = ("band",) + dimension_names
+    chunk_manifest = _construct_chunk_manifest(
+        path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
+    )
+    codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype)
     # # Use CF style fill value for GDAL fill value
     # gdal_fill_value = ifd.other_tags.get(42113, None)
     # if gdal_fill_value:
@@ -191,6 +253,10 @@ def create_manifest_store(
 ) -> Store:
     if not store:
         store = default_object_store(filepath)
+    urlpath = urlparse(filepath).path
+    endianness = store.get_range(urlpath, start=0, end=2)
+    if endianness == b"MM":
+        raise NotImplementedError("Big endian TIFFs are not yet supported.")
     async_tiff_store = convert_obstore_to_async_tiff_store(store)
     # Create a group containing dataset level metadata and all the manifest arrays
     manifest_group = _construct_manifest_group(
