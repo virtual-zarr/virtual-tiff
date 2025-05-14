@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from virtual_tiff.utils import convert_obstore_to_async_tiff_store
+from virtual_tiff.utils import (
+    convert_obstore_to_async_tiff_store,
+    check_no_partial_strips,
+)
 from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
 from virtual_tiff.imagecodecs import ZstdCodec
 import math
@@ -99,7 +102,11 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         offsets = ifd.tile_offsets
         byte_counts = ifd.tile_byte_counts
     elif ifd.rows_per_strip:
-        chunks = (ifd.rows_per_strip, ifd.image_width)
+        rows_per_strip = ifd.rows_per_strip
+        if rows_per_strip > shape[0]:
+            rows_per_strip = shape[0]
+        check_no_partial_strips(image_height=shape[0], rows_per_strip=rows_per_strip)
+        chunks = (rows_per_strip, ifd.image_width)
         offsets = ifd.strip_offsets
         byte_counts = ifd.strip_byte_counts
     else:
