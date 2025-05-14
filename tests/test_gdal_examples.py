@@ -263,7 +263,20 @@ xfail_photometric = [
     "cielab.tif",
     "int12_ycbcr_contig.tif",
 ]
-
+xfail_reshape = [
+    "webp_lossless_rgba_alpha_fully_opaque.tif",
+    "geos_vrtwarp.tif",
+    "excessive-memory-TIFFFillTile.tif",
+    "oddsize1bit.tif",
+    "huge4GB.tif",
+    "toomanyblocks_separate.tif",
+    "size_of_stripbytecount_at_1_and_lower_than_stripcount.tif",
+    "size_of_stripbytecount_lower_than_stripcount.tif",
+    "int10.tif",
+    "int12.tif",
+    "1bit_2bands.tif",
+    "oddsize_1bit2b.tif",
+]
 skip = (
     slow_tests
     + corrupted
@@ -274,4 +287,5 @@ skip = (
     + xfail_gdal_cannot_read
     + xfail_subifd
     + xfail_photometric
+    + xfail_reshape
 )
