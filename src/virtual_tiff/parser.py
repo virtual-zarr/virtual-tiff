@@ -52,6 +52,23 @@ def _get_compression(ifd, compression):
         return codec()
 
 
+def _get_dtype(sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]):
+    if not all(x == sample_format[0] for x in sample_format):
+        raise ValueError(
+            f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple sample formats in a single IFD: {sample_format}"
+        )
+    if not all(x == bits_per_sample[0] for x in bits_per_sample):
+        raise ValueError(
+            f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple bits per sample in a single IFD: {bits_per_sample}"
+        )
+    try:
+        return np.dtype(SAMPLE_DTYPES[(int(sample_format[0]), int(bits_per_sample[0]))])
+    except KeyError as e:
+        raise ValueError(
+            f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
+        ) from e
+
+
 def _construct_chunk_manifest(
     *,
     path: str,
@@ -85,17 +102,12 @@ async def _open_tiff(
 
 
 def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
-    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
-    try:
-        dtype = np.dtype(
-            SAMPLE_DTYPES[(int(ifd.sample_format[0]), int(ifd.bits_per_sample[0]))]
-        )
-    except KeyError as e:
-        raise ValueError(
-            f"Unrecognized datatype, got sample_format = {ifd.sample_format[0]} and bits_per_sample = {ifd.bits_per_sample[0]}"
-        ) from e
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
+    shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
+    dtype = _get_dtype(
+        sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
+    )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.tile_height and ifd.tile_width:
         chunks: Tuple[int, ...] = (ifd.tile_height, ifd.tile_width)
