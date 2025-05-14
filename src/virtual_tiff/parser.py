@@ -120,6 +120,21 @@ def _get_codecs(ifd: ImageFileDirectory, *, shape, chunks, dtype) -> list[BaseCo
     return codecs
 
 
+def _add_dim_for_samples_per_pixel(
+    ifd: ImageFileDirectory, shape: tuple[int, ...], chunks: tuple[int, ...]
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    sample_dim_length = int(ifd.samples_per_pixel)
+    shape = (sample_dim_length,) + shape
+    if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 2:
+        # For PlanarConfiguration = 2, the StripOffsets for the component planes are stored
+        # in the indicated order: first the Red component plane StripOffsets, then the Green plane
+        # StripOffsets, then the Blue plane StripOffsets.
+        chunks = (1,) + chunks
+    else:
+        chunks = (sample_dim_length,) + chunks
+    return shape, chunks
+
+
 def _construct_chunk_manifest(
     *,
     path: str,
@@ -129,14 +144,16 @@ def _construct_chunk_manifest(
     byte_counts: Iterable[int],
 ) -> ChunkManifest:
     chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
-    offsets = np.array(offsets, dtype=np.uint64).reshape(chunk_manifest_shape)
-    byte_counts = np.array(byte_counts, dtype=np.uint64).reshape(chunk_manifest_shape)
-    # See https://web.archive.org/web/20240329145228/https://www.awaresystems.be/imaging/tiff/tifftags/tileoffsets.html for ordering of offsets.
-    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
+    offsets = np.array(offsets, dtype=np.uint64)
+    byte_counts = np.array(byte_counts, dtype=np.uint64)
+
     if np.all(offsets == 0) or np.all(byte_counts == 0):
         raise NotImplementedError(
             "TIFFs without byte counts and offsets aren't supported"
         )
+    offsets = offsets.reshape(chunk_manifest_shape)
+    byte_counts = byte_counts.reshape(chunk_manifest_shape)
+    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
     return ChunkManifest.from_arrays(
         paths=paths,
         offsets=offsets,
@@ -175,14 +192,9 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
             f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
         )
     if ifd.samples_per_pixel > 1:
-        shape = (int(ifd.samples_per_pixel),) + shape
-        if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 2:
-            # For PlanarConfiguration = 2, the StripOffsets for the component planes are stored
-            # in the indicated order: first the Red component plane StripOffsets, then the Green plane
-            # StripOffsets, then the Blue plane StripOffsets.
-            chunks = (1,) + chunks
-        else:
-            chunks = (int(ifd.samples_per_pixel),) + chunks
+        shape, chunks = _add_dim_for_samples_per_pixel(
+            ifd=ifd, shape=shape, chunks=chunks
+        )
         dimension_names = ("band",) + dimension_names
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts

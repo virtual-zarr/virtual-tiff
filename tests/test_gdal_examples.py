@@ -101,10 +101,10 @@ unknown_compressor = [
 ]
 YCbCr = [
     "rgbsmall_JPEG_ycbcr.tif",
-    "zackthecat_corrupted.tif",
+    # "zackthecat_corrupted.tif",
     # "tif_jpeg_ycbcr_too_big_last_stripe.tif",
     "sasha.tif",
-    "zackthecat.tif",
+    # "zackthecat.tif",
     "ycbcr_with_mask.tif",
     "mandrilmini_12bitjpeg.tif",
     "ycbcr_42_lzw.tif",
@@ -138,6 +138,8 @@ big_endian = [
     "bigtiff_two_strip_be_long.tif",
     "classictiff_two_strip_be_short.tif",
     "classictiff_one_block_be_long.tif",
+    "zackthecat_corrupted.tif",
+    "zackthecat.tif",
 ]
 slow_tests = [
     "bug1488.tif",
@@ -194,6 +196,7 @@ xfail_byte_counts = [
     "one_strip_nobytecount.tif",
     "rgbsmall_cmyk.tif",
     "sparse_tiled_separate.tif",
+    "toomanyblocks.tif",
 ]
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
