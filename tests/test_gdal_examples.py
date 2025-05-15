@@ -19,8 +19,6 @@ def match_error(filepath, error, match):
 def run_gdal_test(filename, filepath):
     if filename in skip:
         pytest.xfail("Known failure")
-    if filename in xfail_pred2:
-        pytest.xfail("See https://github.com/maxrjones/virtual-tiff/issues/19")
     filepath = f"{resolve_folder(filepath)}/{filename}"
     if filename in unknown_compressor:
         match_error(
@@ -63,6 +61,12 @@ def run_gdal_test(filename, filepath):
             filepath,
             ValueError,
             r"Unrecognized datatype, got sample_format (.*?)",
+        )
+    elif filename in nested:
+        match_error(
+            filepath,
+            NotImplementedError,
+            r"Nested grids are not supported, but file has (.*?)",
         )
     else:
         rioxarray_comparison(filepath)
@@ -157,6 +161,7 @@ big_endian = [
 slow_tests = [
     "bug1488.tif",
 ]
+nested = ["test_hgrid_with_subgrid.tif"]
 partial_chunks = [
     "isis3_geotiff.tif",
     "bug_6526_input.tif",
@@ -222,7 +227,7 @@ dtype = [
     "cint16.tif",
     "complex_int32.tif",
 ]
-xfail_pred2 = ["float32_LZW_predictor_2.tif", "test_hgrid_with_subgrid.tif"]
+xfail_pred2 = ["float32_LZW_predictor_2.tif"]
 # Generated with the assistance of Claude
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
@@ -298,6 +303,7 @@ skip = (
     slow_tests
     + corrupted
     + xfail_byte_range
+    + xfail_pred2
     + xfail_panic
     + xfail_gdal_cannot_read
     + xfail_subifd

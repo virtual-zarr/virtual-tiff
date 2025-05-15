@@ -143,7 +143,7 @@ def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
     if ifd.other_tags:
         if gdal_xml := ifd.other_tags.get(42112):
             attrs = {**attrs, **gdal_metadata_to_dict(gdal_xml)}
-        if fill_value := ifd.other_tags.get(42112):
+        if fill_value := ifd.other_tags.get(42113):
             attrs["gdal_no_data"] = fill_value
     return attrs
 
@@ -205,6 +205,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
+    attributes = _get_attributes(ifd)
     if ifd.tile_height:
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
@@ -229,6 +230,10 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     )
     codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype)
     attributes = _get_attributes(ifd)
+    if nested := attributes.get("number_of_nested_grids"):
+        raise NotImplementedError(
+            f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
+        )
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=dtype,
