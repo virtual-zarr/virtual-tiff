@@ -7,6 +7,7 @@ from async_tiff.store import (
 )
 from obstore.store import ObjectStore
 from typing import TYPE_CHECKING
+import xml.etree.ElementTree as ET
 
 if TYPE_CHECKING:
     from async_tiff.store import ObjectStore as AsyncTiffObjectStore
@@ -20,6 +21,20 @@ store_matching = {
     "S3Store": S3Store,
     "GCSStore": GCSStore,
 }
+
+
+def gdal_metadata_to_dict(xml_string: str) -> dict[str, str]:
+    """
+    Convert GDAL metadata XML to a dictionary.
+    """
+    root = ET.fromstring(xml_string)
+    metadata_dict = {}
+    for item in root.findall("Item"):
+        name = item.get("name")
+        if name:
+            value = item.text.strip() if item.text else ""
+            metadata_dict[name] = value
+    return metadata_dict
 
 
 def convert_obstore_to_async_tiff_store(store: ObjectStore) -> AsyncTiffObjectStore:

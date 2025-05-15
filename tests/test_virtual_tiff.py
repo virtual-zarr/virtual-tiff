@@ -20,9 +20,9 @@ large_files = [
 def test_simple_load_dataset_against_rioxarray(geotiff_file):
     ds = dataset_from_local_file(geotiff_file)
     assert isinstance(ds, xr.Dataset)
-    expected = rioxarray.open_rasterio(geotiff_file).data.squeeze()
-    observed = ds["0"].data.squeeze()
-    np.testing.assert_allclose(observed, expected)
+    expected = rioxarray.open_rasterio(geotiff_file)
+    observed = ds["0"]
+    np.testing.assert_allclose(observed.data.squeeze(), expected.data.squeeze())
 
 
 @pytest.mark.parametrize("filename", github_examples())

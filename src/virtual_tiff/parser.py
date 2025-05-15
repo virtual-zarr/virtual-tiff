@@ -3,6 +3,7 @@ from __future__ import annotations
 from virtual_tiff.utils import (
     convert_obstore_to_async_tiff_store,
     check_no_partial_strips,
+    gdal_metadata_to_dict,
 )
 from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
 from virtual_tiff.imagecodecs import ZstdCodec
@@ -13,6 +14,7 @@ from zarr.core.sync import sync
 from zarr.abc.codec import BaseCodec
 import numpy as np
 from urllib.parse import urlparse
+from virtual_tiff.constants import GEO_KEYS
 
 from virtualizarr.manifests import (
     ChunkManifest,
@@ -24,7 +26,7 @@ from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_sto
 from zarr.codecs import BytesCodec
 
 if TYPE_CHECKING:
-    from async_tiff import TIFF, ImageFileDirectory
+    from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
     from obstore.store import (
         AzureStore,
         GCSStore,
@@ -120,6 +122,32 @@ def _get_codecs(ifd: ImageFileDirectory, *, shape, chunks, dtype) -> list[BaseCo
     return codecs
 
 
+def _parse_geo_key_directory(geo_key_directory: GeoKeyDirectory) -> dict[str, Any]:
+    attrs = {}
+    for key in GEO_KEYS:
+        if value := getattr(geo_key_directory, key):
+            attrs[key] = value
+    return attrs
+
+
+def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
+    attrs = {}
+    if ifd.geo_key_directory:
+        attrs = _parse_geo_key_directory(ifd.geo_key_directory)
+    else:
+        attrs = {}
+    extra_keys = ["model_pixel_scale", "model_tiepoint", "photometric_interpretation"]
+    for key in extra_keys:
+        if value := getattr(ifd, key):
+            attrs[key] = value
+    if ifd.other_tags:
+        if gdal_xml := ifd.other_tags.get(42112):
+            attrs = {**attrs, **gdal_metadata_to_dict(gdal_xml)}
+        if fill_value := ifd.other_tags.get(42112):
+            attrs["gdal_no_data"] = fill_value
+    return attrs
+
+
 def _add_dim_for_samples_per_pixel(
     ifd: ImageFileDirectory, shape: tuple[int, ...], chunks: tuple[int, ...]
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
@@ -200,11 +228,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype)
-    # # Use CF style fill value for GDAL fill value
-    # gdal_fill_value = ifd.other_tags.get(42113, None)
-    # if gdal_fill_value:
-    #     attributes["_FillValue"] = FillValueCoder.encode(gdal_fill_value, dtype)
-
+    attributes = _get_attributes(ifd)
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=dtype,
@@ -215,7 +239,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
         chunk_key_encoding={"name": "default"},
         fill_value=None,
         codecs=codecs,
-        attributes=None,
+        attributes=attributes,
         dimension_names=dimension_names,
         storage_transformers=None,
     )
