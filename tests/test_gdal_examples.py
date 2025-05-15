@@ -52,6 +52,12 @@ def run_gdal_test(filename, filepath):
             ValueError,
             r"Zarr's default chunk grid expects all chunks to be equal size, but this TIFF has an image height of (.*?)",
         )
+    elif filename in byte_counts:
+        match_error(
+            filepath,
+            NotImplementedError,
+            "TIFFs without byte counts and offsets aren't supported",
+        )
     else:
         rioxarray_comparison(filepath)
 
@@ -173,10 +179,11 @@ partial_chunks = [
     "transformer_13_dem.tif",
     "vrtmisc16_tile1.tif",
     "stefan_full_rgba.tif",
+    "VH.tif",
+    "VV.tif",
+    "geog_arc_second.tif",
 ]
-xfail_pred2 = ["float32_LZW_predictor_2.tif", "test_hgrid_with_subgrid.tif"]
-# Generated with the assistance of Claude
-xfail_byte_counts = [
+byte_counts = [
     "VH.tif",
     "sparse_nodata_one.tif",
     "geog_arc_second.tif",
@@ -198,6 +205,8 @@ xfail_byte_counts = [
     "sparse_tiled_separate.tif",
     "toomanyblocks.tif",
 ]
+xfail_pred2 = ["float32_LZW_predictor_2.tif", "test_hgrid_with_subgrid.tif"]
+# Generated with the assistance of Claude
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
     "byte_truncated.tif",
@@ -280,7 +289,6 @@ xfail_reshape = [
 skip = (
     slow_tests
     + corrupted
-    + xfail_byte_counts
     + xfail_byte_range
     + xfail_dtype
     + xfail_panic
