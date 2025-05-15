@@ -58,6 +58,12 @@ def run_gdal_test(filename, filepath):
             NotImplementedError,
             "TIFFs without byte counts and offsets aren't supported",
         )
+    elif filename in dtype:
+        match_error(
+            filepath,
+            ValueError,
+            r"Unrecognized datatype, got sample_format (.*?)",
+        )
     else:
         rioxarray_comparison(filepath)
 
@@ -146,6 +152,7 @@ big_endian = [
     "classictiff_one_block_be_long.tif",
     "zackthecat_corrupted.tif",
     "zackthecat.tif",
+    "cint32_big_endian.tif",
 ]
 slow_tests = [
     "bug1488.tif",
@@ -205,6 +212,16 @@ byte_counts = [
     "sparse_tiled_separate.tif",
     "toomanyblocks.tif",
 ]
+dtype = [
+    "cint32.tif",
+    "cint32_big_endian.tif",
+    "int24.tif",
+    "cint_sar.tif",
+    "float24.tif",
+    "uint33.tif",
+    "cint16.tif",
+    "complex_int32.tif",
+]
 xfail_pred2 = ["float32_LZW_predictor_2.tif", "test_hgrid_with_subgrid.tif"]
 # Generated with the assistance of Claude
 xfail_byte_range = [
@@ -239,16 +256,7 @@ xfail_panic = [
     "byte_user_defined_geokeys.tif",
     "huge-number-strips.tif",
 ]
-xfail_dtype = [
-    "cint32.tif",
-    "cint32_big_endian.tif",
-    "int24.tif",
-    "cint_sar.tif",
-    "float24.tif",
-    "uint33.tif",
-    "cint16.tif",
-    "complex_int32.tif",
-]
+
 xfail_gdal_cannot_read = [
     "uint64_LZW_predictor_2.tif",
     "stefan_full_greyalpha_uint64_LZW_predictor_2.tif",
@@ -290,7 +298,6 @@ skip = (
     slow_tests
     + corrupted
     + xfail_byte_range
-    + xfail_dtype
     + xfail_panic
     + xfail_gdal_cannot_read
     + xfail_subifd
