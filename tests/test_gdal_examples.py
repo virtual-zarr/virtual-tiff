@@ -5,15 +5,20 @@ from conftest import (
     resolve_folder,
     rioxarray_comparison,
 )
-from virtual_tiff.parser import create_manifest_store
+from virtualizarr.v2.api import open_virtual_dataset
+from virtual_tiff import VirtualTIFF
+from obstore.store import LocalStore
 
 
 def match_error(filepath, error, match):
+    store = LocalStore()
     with pytest.raises(
         error,
         match=match,
     ):
-        create_manifest_store(filepath=filepath, group=0)
+        open_virtual_dataset(
+            filepath=filepath, object_store=store, parser=VirtualTIFF()
+        )
 
 
 def run_gdal_test(filename, filepath):
