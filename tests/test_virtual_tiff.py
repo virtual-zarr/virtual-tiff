@@ -8,6 +8,7 @@ from obstore.store import LocalStore
 
 failures = {
     "IBCSO_v2_ice-surface_cog.tif": "ValueError: Invalid range requested, start: 0 end: 0",
+    "40613.tif": "Rust panic",
 }
 
 large_files = [
