@@ -44,7 +44,7 @@ def gdal_gcore_examples():
 
 
 def loadable_dataset(filepath, store):
-    parser = VirtualTIFF(IFD=0)
+    parser = VirtualTIFF(ifd=0)
     ms = parser(filepath, object_reader=store)
     return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
 

@@ -45,7 +45,7 @@ def test_virtual_dataset_from_tiff(filename):
     if filename in failures.keys():
         pytest.xfail(failures[filename])
     filepath = f"{resolve_folder('tests/dvc/github')}/{filename}"
-    parser = VirtualTIFF(IFD=0)
+    parser = VirtualTIFF(ifd=0)
     store = LocalStore()
     ms = parser(filepath, store)
     ds = ms.to_virtual_dataset()

@@ -274,13 +274,13 @@ def _construct_manifest_group(
 
 
 class VirtualTIFF:
-    _IFD: int | None
+    _ifd: int | None
 
     def __init__(
         self,
-        IFD: int | None = None,
+        ifd: int | None = None,
     ) -> None:
-        self._IFD = IFD
+        self._ifd = ifd
 
     def __call__(self, filepath: str, object_reader: ObjectStore) -> ManifestStore:
         urlpath = urlparse(filepath).path
@@ -290,7 +290,7 @@ class VirtualTIFF:
         async_tiff_store = convert_obstore_to_async_tiff_store(object_reader)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
-            store=async_tiff_store, path=filepath, ifd=self._IFD
+            store=async_tiff_store, path=filepath, ifd=self._ifd
         )
         # Convert to a manifest store
         return ManifestStore(store=object_reader, group=manifest_group)
