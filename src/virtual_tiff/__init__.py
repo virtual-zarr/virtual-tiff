@@ -1,4 +1,7 @@
 from importlib.metadata import version as _version
+from .parser import VirtualTIFF
+
+__all__ = ["VirtualTIFF"]
 
 try:
     __version__ = _version("virtual_tiff")

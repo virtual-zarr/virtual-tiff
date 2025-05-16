@@ -22,7 +22,6 @@ from virtualizarr.manifests import (
     ManifestGroup,
     ManifestStore,
 )
-from virtualizarr.manifests.store import ObjectStoreRegistry, default_object_store
 from zarr.codecs import BytesCodec
 
 if TYPE_CHECKING:
@@ -35,7 +34,6 @@ if TYPE_CHECKING:
         S3Store,
         ObjectStore,
     )
-    from zarr.core.abc.store import Store
 
 
 def _get_compression(ifd: ImageFileDirectory, compression: int):
@@ -255,7 +253,7 @@ def _construct_manifest_group(
     store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore,
     path: str,
     *,
-    group: str | None = None,
+    ifd: int | None = None,
 ) -> ManifestGroup:
     """
     Construct a virtual Group from a tiff file.
@@ -265,9 +263,9 @@ def _construct_manifest_group(
     tiff = sync(_open_tiff(store=store, path=urlpath))
     attrs: dict[str, Any] = {}
     manifest_arrays = {}
-    if group:
-        manifest_arrays[group] = _construct_manifest_array(
-            ifd=tiff.ifds[int(group)], path=path
+    if ifd is not None:
+        manifest_arrays[str(ifd)] = _construct_manifest_array(
+            ifd=tiff.ifds[ifd], path=path
         )
     else:
         for ind, ifd in enumerate(tiff.ifds):
@@ -275,22 +273,24 @@ def _construct_manifest_group(
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
 
-def create_manifest_store(
-    filepath: str,
-    group: str,
-    store: ObjectStore | None = None,
-) -> Store:
-    if not store:
-        store = default_object_store(filepath)
-    urlpath = urlparse(filepath).path
-    endianness = store.get_range(urlpath, start=0, end=2)
-    if endianness == b"MM":
-        raise NotImplementedError("Big endian TIFFs are not yet supported.")
-    async_tiff_store = convert_obstore_to_async_tiff_store(store)
-    # Create a group containing dataset level metadata and all the manifest arrays
-    manifest_group = _construct_manifest_group(
-        store=async_tiff_store, path=filepath, group=group
-    )
-    registry = ObjectStoreRegistry({filepath: store})
-    # Convert to a manifest store
-    return ManifestStore(store_registry=registry, group=manifest_group)
+class VirtualTIFF:
+    _IFD: int | None
+
+    def __init__(
+        self,
+        IFD: int | None = None,
+    ) -> None:
+        self._IFD = IFD
+
+    def __call__(self, filepath: str, object_reader: ObjectStore) -> ManifestStore:
+        urlpath = urlparse(filepath).path
+        endianness = object_reader.get_range(urlpath, start=0, end=2)
+        if endianness == b"MM":
+            raise NotImplementedError("Big endian TIFFs are not yet supported.")
+        async_tiff_store = convert_obstore_to_async_tiff_store(object_reader)
+        # Create a group containing dataset level metadata and all the manifest arrays
+        manifest_group = _construct_manifest_group(
+            store=async_tiff_store, path=filepath, ifd=self._IFD
+        )
+        # Convert to a manifest store
+        return ManifestStore(store=object_reader, group=manifest_group)

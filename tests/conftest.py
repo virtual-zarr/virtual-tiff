@@ -4,7 +4,8 @@ import pytest
 import xarray as xr
 import numpy as np
 import rioxarray
-from virtual_tiff.parser import create_manifest_store
+from virtual_tiff import VirtualTIFF
+from obstore.store import LocalStore
 
 
 @pytest.fixture
@@ -42,13 +43,16 @@ def gdal_gcore_examples():
     return list_tiffs(data_dir)
 
 
-def dataset_from_local_file(filepath):
-    ms = create_manifest_store(filepath, group="0")
+def loadable_dataset(filepath, store):
+    parser = VirtualTIFF(IFD=0)
+    ms = parser(filepath, object_reader=store)
     return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
 
 
-def rioxarray_comparison(filepath):
-    ds = dataset_from_local_file(filepath)
+def rioxarray_comparison(filepath, store=None):
+    if not store:
+        store = LocalStore()
+    ds = loadable_dataset(filepath, store)
     assert isinstance(ds, xr.Dataset)
     expected = rioxarray.open_rasterio(filepath)
     if isinstance(expected, xr.DataArray):
