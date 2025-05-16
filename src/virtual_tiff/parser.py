@@ -27,11 +27,6 @@ from zarr.codecs import BytesCodec
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
     from obstore.store import (
-        AzureStore,
-        GCSStore,
-        HTTPStore,
-        LocalStore,
-        S3Store,
         ObjectStore,
     )
 
@@ -187,9 +182,7 @@ def _construct_chunk_manifest(
     )
 
 
-async def _open_tiff(
-    *, path: str, store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore
-) -> TIFF:
+async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
     from async_tiff import TIFF
 
     return await TIFF.open(path, store=store)
@@ -250,7 +243,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
 
 
 def _construct_manifest_group(
-    store: AzureStore | GCSStore | HTTPStore | S3Store | LocalStore,
+    store: ObjectStore,
     path: str,
     *,
     ifd: int | None = None,
