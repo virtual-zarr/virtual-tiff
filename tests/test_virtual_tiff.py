@@ -5,6 +5,7 @@ from virtual_tiff import VirtualTIFF
 import rioxarray
 from conftest import loadable_dataset, github_examples, resolve_folder
 from obstore.store import LocalStore
+from virtualizarr.v2.api import open_virtual_dataset
 
 failures = {
     "IBCSO_v2_ice-surface_cog.tif": "ValueError: Invalid range requested, start: 0 end: 0",
@@ -49,5 +50,15 @@ def test_virtual_dataset_from_tiff(filename):
     store = LocalStore()
     ms = parser(filepath, store)
     ds = ms.to_virtual_dataset()
+    assert isinstance(ds, xr.Dataset)
+    # TODO: Add more property tests
+
+
+def test_using_VirtualTIFF_class_as_parser():
+    filepath = f"{resolve_folder('tests/dvc/github')}/test_reference.tif"
+    store = LocalStore()
+    ds = open_virtual_dataset(
+        filepath=filepath, object_reader=store, parser=VirtualTIFF
+    )
     assert isinstance(ds, xr.Dataset)
     # TODO: Add more property tests
