@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "obstore",
     "async_tiff",
-    "virtualizarr @ git+https://github.com/maxrjones/VirtualiZarr@v2-api",
+    "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr@v2-api",
     "imagecodecs",
     "imagecodecs-numcodecs",
     "zarr @ git+https://github.com/zarr-developers/zarr-python",
