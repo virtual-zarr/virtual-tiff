@@ -43,12 +43,6 @@ def run_gdal_test(filename, filepath):
             NotImplementedError,
             "YCbCr PhotometricInterpretation is not yet supported.",
         )
-    elif filename in big_endian:
-        match_error(
-            filepath,
-            NotImplementedError,
-            "Big endian TIFFs are not yet supported.",
-        )
     elif filename in partial_chunks:
         match_error(
             filepath,
@@ -122,10 +116,10 @@ unknown_compressor = [
 ]
 YCbCr = [
     "rgbsmall_JPEG_ycbcr.tif",
-    # "zackthecat_corrupted.tif",
+    "zackthecat_corrupted.tif",
     # "tif_jpeg_ycbcr_too_big_last_stripe.tif",
     "sasha.tif",
-    # "zackthecat.tif",
+    "zackthecat.tif",
     "ycbcr_with_mask.tif",
     "mandrilmini_12bitjpeg.tif",
     "ycbcr_42_lzw.tif",
@@ -139,29 +133,6 @@ YCbCr = [
     "ycbcr_44_lzw.tif",
     "ycbcr_24_lzw.tif",
     "ycbcr_12_lzw.tif",
-]
-big_endian = [
-    "int16_big_endian.tif",
-    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
-    "float32_lzw_predictor_3_big_endian.tif",
-    "quad-lzw-old-style.tif",
-    "separate_tiled.tif",
-    "seperate_strip.tif",
-    "bigtiff_one_strip_be_long8.tif",
-    "bigtiff_four_strip_be_short.tif",
-    "bigtiff_two_strip_be_long8.tif",
-    "contig_strip.tif",
-    "classictiff_four_strip_be_short.tif",
-    "contig_tiled.tif",
-    "bigtiff_one_strip_be_long.tif",
-    "bigtiff_one_block_be_long8.tif",
-    "classictiff_one_strip_be_long.tif",
-    "bigtiff_two_strip_be_long.tif",
-    "classictiff_two_strip_be_short.tif",
-    "classictiff_one_block_be_long.tif",
-    "zackthecat_corrupted.tif",
-    "zackthecat.tif",
-    "cint32_big_endian.tif",
 ]
 slow_tests = [
     "bug1488.tif",
@@ -199,6 +170,8 @@ partial_chunks = [
     "VH.tif",
     "VV.tif",
     "geog_arc_second.tif",
+    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
+    "quad-lzw-old-style.tif",
 ]
 byte_counts = [
     "VH.tif",
@@ -303,6 +276,8 @@ xfail_reshape = [
     "int12.tif",
     "1bit_2bands.tif",
     "oddsize_1bit2b.tif",
+    "contig_tiled.tif",
+    "separate_tiled.tif",
 ]
 skip = (
     slow_tests

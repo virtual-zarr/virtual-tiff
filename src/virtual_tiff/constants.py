@@ -15,6 +15,7 @@ from virtual_tiff.imagecodecs import (
 )
 from numcodecs.zarr3 import Zlib, LZMA
 
+ENDIAN = {b"MM": "big", b"II": "little"}
 COMPRESSORS = {
     1: None,
     8: Zlib,

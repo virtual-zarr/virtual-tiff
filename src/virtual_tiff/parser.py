@@ -5,6 +5,7 @@ from virtual_tiff.utils import (
     check_no_partial_strips,
     gdal_metadata_to_dict,
 )
+from async_tiff import TIFF
 from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
 from virtual_tiff.imagecodecs import ZstdCodec
 import math
@@ -14,8 +15,9 @@ from zarr.core.sync import sync
 from zarr.abc.codec import BaseCodec
 import numpy as np
 from urllib.parse import urlparse
-from virtual_tiff.constants import GEO_KEYS
-
+from virtual_tiff.constants import GEO_KEYS, ENDIAN
+from virtual_tiff.imagecodecs import FloatPredCodec
+from virtual_tiff.codecs import ChunkyCodec, DeltaCodec
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -23,7 +25,7 @@ from virtualizarr.manifests import (
     ManifestStore,
     ObjectStoreRegistry,
 )
-from zarr.codecs import BytesCodec
+from zarr.codecs import BytesCodec, TransposeCodec
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
@@ -91,26 +93,26 @@ def _get_chunks_from_strips(
     return chunks, offsets, byte_counts
 
 
-def _get_codecs(ifd: ImageFileDirectory, *, shape, chunks, dtype) -> list[BaseCodec]:
+def _get_codecs(
+    ifd: ImageFileDirectory,
+    *,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...],
+    dtype: np.dtype,
+    endian: str,
+) -> list[BaseCodec]:
     codecs = []
     if ifd.predictor == 2:
-        from virtual_tiff.codecs import DeltaCodec
-
         codecs.append(DeltaCodec())
     elif ifd.predictor == 3:
-        from virtual_tiff.imagecodecs import FloatPredCodec
-
         codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
     compression = ifd.compression
     if ifd.planar_configuration == 1 and ifd.samples_per_pixel > 1:
-        from zarr.codecs import TransposeCodec
-        from virtual_tiff.codecs import ChunkyCodec
-
         codecs.append(TransposeCodec(order=(0, *tuple(range(1, len(shape)))[::-1])))
-        codecs.append(ChunkyCodec())
+        codecs.append(ChunkyCodec(endian=str(endian)))
     else:
-        codecs.append(BytesCodec())
+        codecs.append(BytesCodec(endian=str(endian)))
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     return codecs
@@ -184,12 +186,12 @@ def _construct_chunk_manifest(
 
 
 async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
-    from async_tiff import TIFF
-
     return await TIFF.open(path, store=store)
 
 
-def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> ManifestArray:
+def _construct_manifest_array(
+    *, ifd: ImageFileDirectory, path: str, endian: str
+) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
     shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
@@ -220,7 +222,7 @@ def _construct_manifest_array(*, ifd: ImageFileDirectory, path: str) -> Manifest
     chunk_manifest = _construct_chunk_manifest(
         path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
-    codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype)
+    codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype, endian=endian)
     attributes = _get_attributes(ifd)
     if nested := attributes.get("number_of_nested_grids"):
         raise NotImplementedError(
@@ -247,6 +249,7 @@ def _construct_manifest_group(
     store: ObjectStore,
     path: str,
     *,
+    endian: str,
     ifd: int | None = None,
 ) -> ManifestGroup:
     """
@@ -259,11 +262,13 @@ def _construct_manifest_group(
     manifest_arrays = {}
     if ifd is not None:
         manifest_arrays[str(ifd)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd], path=path
+            ifd=tiff.ifds[ifd], path=path, endian=endian
         )
     else:
         for ind, ifd in enumerate(tiff.ifds):
-            manifest_arrays[str(ind)] = _construct_manifest_array(ifd=ifd, path=path)
+            manifest_arrays[str(ind)] = _construct_manifest_array(
+                ifd=ifd, path=path, endian=endian
+            )
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
 
@@ -280,13 +285,11 @@ class VirtualTIFF:
         parsed = urlparse(filepath)
         scheme = parsed.scheme
         urlpath = parsed.path
-        endianness = object_store.get_range(urlpath, start=0, end=2)
-        if endianness == b"MM":
-            raise NotImplementedError("Big endian TIFFs are not yet supported.")
+        endian = ENDIAN[object_store.get_range(urlpath, start=0, end=2).to_bytes()]
         async_tiff_store = convert_obstore_to_async_tiff_store(object_store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
-            store=async_tiff_store, path=filepath, ifd=self._ifd
+            store=async_tiff_store, path=filepath, ifd=self._ifd, endian=endian
         )
         # Convert to a manifest store
         registry = ObjectStoreRegistry(stores={scheme: object_store})
