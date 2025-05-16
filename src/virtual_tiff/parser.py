@@ -21,6 +21,7 @@ from virtualizarr.manifests import (
     ManifestArray,
     ManifestGroup,
     ManifestStore,
+    ObjectStoreRegistry,
 )
 from zarr.codecs import BytesCodec
 
@@ -275,15 +276,18 @@ class VirtualTIFF:
     ) -> None:
         self._ifd = ifd
 
-    def __call__(self, filepath: str, object_reader: ObjectStore) -> ManifestStore:
-        urlpath = urlparse(filepath).path
-        endianness = object_reader.get_range(urlpath, start=0, end=2)
+    def __call__(self, filepath: str, object_store: ObjectStore) -> ManifestStore:
+        parsed = urlparse(filepath)
+        scheme = parsed.scheme
+        urlpath = parsed.path
+        endianness = object_store.get_range(urlpath, start=0, end=2)
         if endianness == b"MM":
             raise NotImplementedError("Big endian TIFFs are not yet supported.")
-        async_tiff_store = convert_obstore_to_async_tiff_store(object_reader)
+        async_tiff_store = convert_obstore_to_async_tiff_store(object_store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
             store=async_tiff_store, path=filepath, ifd=self._ifd
         )
         # Convert to a manifest store
-        return ManifestStore(store=object_reader, group=manifest_group)
+        registry = ObjectStoreRegistry(stores={scheme: object_store})
+        return ManifestStore(store_registry=registry, group=manifest_group)

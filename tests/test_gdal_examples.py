@@ -17,7 +17,7 @@ def match_error(filepath, error, match):
         match=match,
     ):
         open_virtual_dataset(
-            filepath=filepath, object_reader=store, parser=VirtualTIFF()
+            filepath=filepath, object_store=store, parser=VirtualTIFF()
         )
 
 
