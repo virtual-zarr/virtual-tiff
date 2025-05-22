@@ -252,9 +252,6 @@ def _construct_manifest_group(
     endian: str,
     ifd: int | None = None,
 ) -> ManifestGroup:
-    """
-    Construct a virtual Group from a tiff file.
-    """
     # TODO: Make an async approach
     urlpath = urlparse(path).path
     tiff = sync(_open_tiff(store=store, path=urlpath))
@@ -279,9 +276,23 @@ class VirtualTIFF:
         self,
         ifd: int | None = None,
     ) -> None:
+        """Configure VirtualTIFF parser.
+
+        Args:
+            ifd (int | None, optional): IFD within the TIFF file to virtualize. Defaults to None, meaning that all IFDs will be virtualized as Zarr groups.
+        """
         self._ifd = ifd
 
     def __call__(self, filepath: str, object_store: ObjectStore) -> ManifestStore:
+        """Produce a ManifestStore from a file path and object store instance.
+
+        Args:
+            filepath (str): URL to the TIFF.
+            object_store (ObjectStore): ObjectStore to use for reading the TIFF.
+
+        Returns:
+            ManifestStore: ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
+        """
         parsed = urlparse(filepath)
         scheme = parsed.scheme
         urlpath = parsed.path

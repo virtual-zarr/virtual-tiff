@@ -49,12 +49,6 @@ coverage.xml
 # Django stuff:
 *.log
 
-# Sphinx documentation
-docs/_build/
-docs/api
-docs/data
-data.zip
-
 # PyBuilder
 target/
 
@@ -64,8 +58,6 @@ target/
 # Jupyter
 .ipynb_checkpoints/
 
-# VCS versioning
-src/zarr/_version.py
 
 # emacs
 *~

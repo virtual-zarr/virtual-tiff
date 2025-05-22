@@ -1,4 +1,4 @@
-# Why Virtualize GeoTIFFs or COGs?
+# Virtual TIFF
 
 ## Status
 
