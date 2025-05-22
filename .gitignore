@@ -80,3 +80,5 @@ tests/.hypothesis
 .hypothesis/
 
 zarr/version.py
+
+site/
