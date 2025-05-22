@@ -55,6 +55,11 @@ dev = [
   "earthaccess",
   "xarray",
   "dvc[s3]>=3.59.1",
+  # docs
+  "mkdocs-material[imaging]>=9.6.14",
+  "mkdocs>=1.6.1",
+  "mkdocstrings>=0.29.1",
+  "mkdocstrings-python>=1.16.10",
 ]
 
 [tool.pixi.project]
@@ -87,9 +92,16 @@ run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
 run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
 download-test-images = { cmd = "dvc pull" }
 
+# Define commands to run within the test environments
+[tool.pixi.feature.docs.tasks]
+serve-docs = { cmd = "mkdocs serve" }
+build-docs = { cmd = "mkdocs build" }
+
+
 # Define which features and groups to include in different pixi (similar to conda) environments)
 [tool.pixi.environments]
 test = ["dev", "test"]
+docs = ["dev", "docs"]
 test-py311 = ["dev", "test", "py311"] # test against python 3.11
 test-py312 = ["dev", "test","py312"] # test against python 3.12
 
