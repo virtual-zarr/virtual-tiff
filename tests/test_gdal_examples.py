@@ -5,7 +5,7 @@ from conftest import (
     resolve_folder,
     rioxarray_comparison,
 )
-from virtualizarr.v2.api import open_virtual_dataset
+from virtualizarr import open_virtual_dataset
 from virtual_tiff import VirtualTIFF
 from obstore.store import LocalStore
 
@@ -17,7 +17,7 @@ def match_error(filepath, error, match):
         match=match,
     ):
         open_virtual_dataset(
-            filepath=filepath, object_store=store, parser=VirtualTIFF()
+            file_url=filepath, object_store=store, parser=VirtualTIFF()
         )
 
 
