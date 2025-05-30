@@ -33,7 +33,7 @@ dependencies = [
     "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr@refactor/backends",
     "imagecodecs",
     "imagecodecs-numcodecs",
-    "zarr @ git+https://github.com/zarr-developers/zarr-python",
+    "zarr",
 ]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
@@ -140,7 +140,7 @@ allow-direct-references = true
 "imagecodecs_webp" = "virtual_tiff.imagecodecs:WebpCodec"
 "imagecodecs_zstd" = "virtual_tiff.imagecodecs:ZstdCodec"
 "virtual_tiff.ChunkyCodec" = "virtual_tiff.codecs:ChunkyCodec"
-"virtual_tiff.DeltaCodec" = "virtual_tiff.codecs:DeltaCodec"
+"virtual_tiff.HorizontalDeltaCodec" = "virtual_tiff.codecs:HorizontalDeltaCodec"
 
 [tool.codespell]
 skip = 'pixi.lock'
