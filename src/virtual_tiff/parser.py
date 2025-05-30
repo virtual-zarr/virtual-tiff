@@ -283,24 +283,24 @@ class VirtualTIFF:
         """
         self._ifd = ifd
 
-    def __call__(self, filepath: str, object_store: ObjectStore) -> ManifestStore:
+    def __call__(self, file_url: str, object_store: ObjectStore) -> ManifestStore:
         """Produce a ManifestStore from a file path and object store instance.
 
         Args:
-            filepath (str): URL to the TIFF.
+            file_url (str): URL to the TIFF.
             object_store (ObjectStore): ObjectStore to use for reading the TIFF.
 
         Returns:
             ManifestStore: ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
-        parsed = urlparse(filepath)
+        parsed = urlparse(file_url)
         scheme = parsed.scheme
         urlpath = parsed.path
         endian = ENDIAN[object_store.get_range(urlpath, start=0, end=2).to_bytes()]
         async_tiff_store = convert_obstore_to_async_tiff_store(object_store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
-            store=async_tiff_store, path=filepath, ifd=self._ifd, endian=endian
+            store=async_tiff_store, path=file_url, ifd=self._ifd, endian=endian
         )
         # Convert to a manifest store
         registry = ObjectStoreRegistry(stores={scheme: object_store})
