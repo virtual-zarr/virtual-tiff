@@ -17,7 +17,7 @@ import numpy as np
 from urllib.parse import urlparse
 from virtual_tiff.constants import GEO_KEYS, ENDIAN
 from virtual_tiff.imagecodecs import FloatPredCodec
-from virtual_tiff.codecs import ChunkyCodec, DeltaCodec
+from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -103,7 +103,7 @@ def _get_codecs(
 ) -> list[BaseCodec]:
     codecs = []
     if ifd.predictor == 2:
-        codecs.append(DeltaCodec())
+        codecs.append(HorizontalDeltaCodec())
     elif ifd.predictor == 3:
         codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
