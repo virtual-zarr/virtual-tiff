@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "obstore",
     "async_tiff",
-    "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr@refactor/backends",
+    "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr@develop",
     "imagecodecs",
     "imagecodecs-numcodecs",
     "zarr",
@@ -40,7 +40,6 @@ dependencies = [
 [dependency-groups]
 dev = [
   "codecov",
-  "netcdf4",
   "mypy",
   "pandas-stubs",
   "pooch",
