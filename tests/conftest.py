@@ -6,6 +6,8 @@ import numpy as np
 import rioxarray
 from virtual_tiff import VirtualTIFF
 from obstore.store import LocalStore
+from virtualizarr.registry import ObjectStoreRegistry
+from urllib.parse import urlparse
 
 
 @pytest.fixture
@@ -43,18 +45,19 @@ def gdal_gcore_examples():
     return list_tiffs(data_dir)
 
 
-def loadable_dataset(filepath, store):
+def loadable_dataset(filepath, registry):
     parser = VirtualTIFF(ifd=0)
-    ms = parser(filepath, object_store=store)
+    ms = parser(filepath, registry=registry)
     return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
 
 
-def rioxarray_comparison(filepath, store=None):
-    if not store:
-        store = LocalStore()
-    ds = loadable_dataset(filepath, store)
+def rioxarray_comparison(filepath, registry: ObjectStoreRegistry = None):
+    if not registry:
+        registry = ObjectStoreRegistry({filepath: LocalStore()})
+    ds = loadable_dataset(filepath, registry)
     assert isinstance(ds, xr.Dataset)
     expected = rioxarray.open_rasterio(filepath)
+    filepath = urlparse(filepath).path
     if isinstance(expected, xr.DataArray):
         np.testing.assert_allclose(ds["0"].data.squeeze(), expected.data.squeeze())
     elif isinstance(expected, xr.Dataset):

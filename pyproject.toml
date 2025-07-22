@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "obstore",
     "async_tiff",
-    "virtualizarr @ git+https://github.com/zarr-developers/VirtualiZarr@develop",
+    "virtualizarr>=2.0",
     "imagecodecs",
     "imagecodecs-numcodecs",
     "zarr",
@@ -52,7 +52,6 @@ dev = [
   "ruff",
   "s3fs",
   "earthaccess",
-  "xarray",
   "dvc[s3]>=3.59.1",
   # docs
   "mkdocs-material[imaging]>=9.6.14",

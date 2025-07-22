@@ -23,9 +23,10 @@ from virtualizarr.manifests import (
     ManifestArray,
     ManifestGroup,
     ManifestStore,
-    ObjectStoreRegistry,
 )
+from virtualizarr.registry import ObjectStoreRegistry
 from zarr.codecs import BytesCodec, TransposeCodec
+from zarr.dtype import parse_data_type
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
@@ -228,15 +229,16 @@ def _construct_manifest_array(
         raise NotImplementedError(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
+    zdtype = parse_data_type(dtype, zarr_format=3)
     metadata = ArrayV3Metadata(
         shape=shape,
-        data_type=dtype,
+        data_type=zdtype,
         chunk_grid={
             "name": "regular",
             "configuration": {"chunk_shape": chunks},
         },
         chunk_key_encoding={"name": "default"},
-        fill_value=None,
+        fill_value=zdtype.default_scalar(),
         codecs=codecs,
         attributes=attributes,
         dimension_names=dimension_names,
@@ -283,25 +285,24 @@ class VirtualTIFF:
         """
         self._ifd = ifd
 
-    def __call__(self, file_url: str, object_store: ObjectStore) -> ManifestStore:
+    def __call__(self, url: str, registry: ObjectStoreRegistry) -> ManifestStore:
         """Produce a ManifestStore from a file path and object store instance.
 
         Args:
-            file_url (str): URL to the TIFF.
-            object_store (ObjectStore): ObjectStore to use for reading the TIFF.
+            url (str): URL to the TIFF.
+            registry (ObjectStoreRegistry): ObjectStoreRegistry to use for reading the TIFF.
 
         Returns:
             ManifestStore: ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
-        parsed = urlparse(file_url)
-        scheme = parsed.scheme
+        parsed = urlparse(url)
         urlpath = parsed.path
-        endian = ENDIAN[object_store.get_range(urlpath, start=0, end=2).to_bytes()]
-        async_tiff_store = convert_obstore_to_async_tiff_store(object_store)
+        store, path_in_store = registry.resolve(url)
+        endian = ENDIAN[store.get_range(urlpath, start=0, end=2).to_bytes()]
+        async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
-            store=async_tiff_store, path=file_url, ifd=self._ifd, endian=endian
+            store=async_tiff_store, path=url, ifd=self._ifd, endian=endian
         )
         # Convert to a manifest store
-        registry = ObjectStoreRegistry(stores={scheme: object_store})
-        return ManifestStore(store_registry=registry, group=manifest_group)
+        return ManifestStore(registry=registry, group=manifest_group)
