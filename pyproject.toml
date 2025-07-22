@@ -145,3 +145,44 @@ allow-direct-references = true
 
 [tool.codespell]
 skip = 'pixi.lock'
+
+[tool.ruff]
+# Same as Black.
+line-length = 88
+indent-width = 4
+target-version = "py311"
+
+exclude = [
+    "docs",
+    ".eggs"
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["E4", "E7", "E9", "F", "I"]
+per-file-ignores = {}
+
+# E402: module level import not at top of file
+# E731: do not assign a lambda expression, use a def
+# W503: line break before binary operator - not implimeted by ruff due to conflict with PEP8.
+
+ignore = ["E402", "E731"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Indent with spaces, rather than tabs.
+indent-style = "space"
+# Respect magic trailing commas.
+skip-magic-trailing-comma = false
+# Automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-first-party = ["src/virtual_tiff"]

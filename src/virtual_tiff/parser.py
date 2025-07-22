@@ -1,20 +1,11 @@
 from __future__ import annotations
 
-from virtual_tiff.utils import (
-    convert_obstore_to_async_tiff_store,
-    check_no_partial_strips,
-    gdal_metadata_to_dict,
-)
-from async_tiff import TIFF
-from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
-from virtual_tiff.imagecodecs import ZstdCodec
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
-import numpy as np
 from urllib.parse import urlparse
-from virtual_tiff.constants import GEO_KEYS, ENDIAN
-from virtual_tiff.imagecodecs import FloatPredCodec
-from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
+
+import numpy as np
+from async_tiff import TIFF
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
@@ -22,14 +13,23 @@ from virtualizarr.manifests import (
     ManifestStore,
 )
 from virtualizarr.registry import ObjectStoreRegistry
+from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
-import zarr
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
-from zarr.abc.codec import BaseCodec
+from zarr.dtype import parse_data_type
+
+from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
+from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
+from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
+from virtual_tiff.utils import (
+    check_no_partial_strips,
+    convert_obstore_to_async_tiff_store,
+    gdal_metadata_to_dict,
+)
 
 if TYPE_CHECKING:
-    from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
+    from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
     from obstore.store import (
         ObjectStore,
     )
@@ -234,7 +234,7 @@ def _construct_manifest_array(
         raise NotImplementedError(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
-    zdtype = zarr.dtype.parse_data_type(dtype, zarr_format=3)
+    zdtype = parse_data_type(dtype, zarr_format=3)
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=zdtype,
