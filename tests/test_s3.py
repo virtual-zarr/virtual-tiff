@@ -1,6 +1,7 @@
 from conftest import rioxarray_comparison
 import os
 from obstore.store import S3Store
+from virtualizarr.registry import ObjectStoreRegistry
 
 
 def test_load_s3_dataset_against_rioxarray():
@@ -13,4 +14,5 @@ def test_load_s3_dataset_against_rioxarray():
         virtual_hosted_style_request=False,
         region="us-west-2",
     )
-    rioxarray_comparison(filepath, store=store)
+    registry = ObjectStoreRegistry({"s3://sentinel-cogs/sentinel-s2-l2a-cogs": store})
+    rioxarray_comparison(filepath, registry=registry)

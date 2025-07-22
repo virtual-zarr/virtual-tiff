@@ -8,16 +8,17 @@ from conftest import (
 from virtualizarr import open_virtual_dataset
 from virtual_tiff import VirtualTIFF
 from obstore.store import LocalStore
+from virtualizarr.registry import ObjectStoreRegistry
 
 
 def match_error(filepath, error, match):
-    store = LocalStore()
+    registry = ObjectStoreRegistry({"file://": LocalStore()})
     with pytest.raises(
         error,
         match=match,
     ):
         open_virtual_dataset(
-            file_url=filepath, object_store=store, parser=VirtualTIFF()
+            url=f"file://{filepath}", registry=registry, parser=VirtualTIFF()
         )
 
 
@@ -68,7 +69,7 @@ def run_gdal_test(filename, filepath):
             r"Nested grids are not supported, but file has (.*?)",
         )
     else:
-        rioxarray_comparison(filepath)
+        rioxarray_comparison(f"file://{filepath}")
 
 
 @pytest.mark.parametrize("filename", gdal_autotest_examples())

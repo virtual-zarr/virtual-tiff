@@ -41,7 +41,7 @@ class ChunkyCodec(ArrayBytesCodec):
         return {"name": "ChunkyCodec"}
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
-        if array_spec.dtype.itemsize == 0:
+        if array_spec.dtype.item_size == 0:
             if self.endian is not None:
                 return replace(self, endian=None)
         elif self.endian is None:
@@ -56,14 +56,14 @@ class ChunkyCodec(ArrayBytesCodec):
         chunk_spec: ArraySpec,
     ) -> NDBuffer:
         assert isinstance(chunk_bytes, Buffer)
-        if chunk_spec.dtype.itemsize > 0:
+        if chunk_spec.dtype.item_size > 0:
             if self.endian == Endian.little:
                 prefix = "<"
             else:
                 prefix = ">"
-            dtype = np.dtype(f"{prefix}{chunk_spec.dtype.str[1:]}")
+            dtype = np.dtype(f"{prefix}{chunk_spec.dtype.to_native_dtype().str[1:]}")
         else:
-            dtype = np.dtype(f"|{chunk_spec.dtype.str[1:]}")
+            dtype = np.dtype(f"|{chunk_spec.dtype.to_native_dtype().str[1:]}")
 
         as_array_like = chunk_bytes.as_array_like()
         if isinstance(as_array_like, NDArrayLike):
