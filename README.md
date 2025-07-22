@@ -1,12 +1,8 @@
 # Virtual TIFF
 
-## Status
-
-Experimental, proof-of-concept.
+A Parser for creating Virtual Zarr stores from TIFF files using [VirtualiZarr 2.0](https://virtualizarr.readthedocs.io/en/stable/index.html) and [async-tiff](https://developmentseed.org/async-tiff/latest/).
 
 ## Background
-
-This repository started as a simple set of demonstrations to prompt discussions over whether and how we should approach Virtualizing GeoTIFFs and COGs.
 
 First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
 
@@ -19,7 +15,7 @@ First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
 
 ## Getting started
 
-1. Clone the repository: `git clone https://github.com/maxrjones/virtual-tiff.git`.
+1. Clone the repository: `git clone https://github.com/virtual-zarr/virtual-tiff.git`.
 2. Pull baseline image data from dvc remote `pixi run -e test download-test-images` WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
 3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
 4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
