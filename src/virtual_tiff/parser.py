@@ -10,9 +10,6 @@ from virtual_tiff.constants import SAMPLE_DTYPES, COMPRESSORS
 from virtual_tiff.imagecodecs import ZstdCodec
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Tuple
-from zarr.core.metadata.v3 import ArrayV3Metadata
-from zarr.core.sync import sync
-from zarr.abc.codec import BaseCodec
 import numpy as np
 from urllib.parse import urlparse
 from virtual_tiff.constants import GEO_KEYS, ENDIAN
@@ -26,7 +23,10 @@ from virtualizarr.manifests import (
 )
 from virtualizarr.registry import ObjectStoreRegistry
 from zarr.codecs import BytesCodec, TransposeCodec
-from zarr.dtype import parse_data_type
+import zarr
+from zarr.core.metadata.v3 import ArrayV3Metadata
+from zarr.core.sync import sync
+from zarr.abc.codec import BaseCodec
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, ImageFileDirectory, GeoKeyDirectory
@@ -64,7 +64,12 @@ def _get_dtype(
             f"The Zarr specification does not allow multiple data types in a single array, but the TIFF had multiple bits per sample in a single IFD: {bits_per_sample}"
         )
     try:
-        return np.dtype(SAMPLE_DTYPES[(int(sample_format[0]), int(bits_per_sample[0]))])
+        dtype = SAMPLE_DTYPES[(int(sample_format[0]), int(bits_per_sample[0]))]
+        if dtype in ["q", "Q"]:
+            raise NotImplementedError(
+                "Requires upstream fix; see https://github.com/virtual-zarr/virtual-tiff/issues/42."
+            )
+        return np.dtype(dtype)
     except KeyError as e:
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
@@ -229,7 +234,7 @@ def _construct_manifest_array(
         raise NotImplementedError(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
-    zdtype = parse_data_type(dtype, zarr_format=3)
+    zdtype = zarr.dtype.parse_data_type(dtype, zarr_format=3)
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=zdtype,

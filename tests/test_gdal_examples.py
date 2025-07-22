@@ -206,6 +206,13 @@ dtype = [
     "cint16.tif",
     "complex_int32.tif",
 ]
+xfail_int64 = [
+    "int64_full_range.tif",
+    "uint64_full_range.tif",
+    "uint64.tif",
+    "int64.tif",
+    "rgbsmall_uint64_LZW_predictor_2.tif",
+]
 xfail_pred2 = ["float32_LZW_predictor_2.tif"]
 # Generated with the assistance of Claude
 xfail_byte_range = [
@@ -290,4 +297,5 @@ skip = (
     + xfail_subifd
     + xfail_photometric
     + xfail_reshape
+    + xfail_int64
 )
