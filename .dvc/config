@@ -1,4 +1,4 @@
 [core]
     remote = origin
 ['remote "origin"']
-    url = https://dagshub.com/maxrjones/virtual-tiff.dvc
+    url = https://dagshub.com/virtual-zarr/virtual-tiff.dvc

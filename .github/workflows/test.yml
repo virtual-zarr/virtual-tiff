@@ -40,6 +40,8 @@ jobs:
 
       - name: Download test images
         run: |
+          pixi run -e ${{ matrix.environment }} "dvc remote list"
+          pixi run -e ${{ matrix.environment }} "dvc status -c"
           pixi run -e ${{ matrix.environment }} download-test-images
 
       - name: Running Tests
