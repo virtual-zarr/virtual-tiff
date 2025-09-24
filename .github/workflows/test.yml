@@ -40,9 +40,10 @@ jobs:
 
       - name: Download test images
         run: |
-          pixi run -e ${{ matrix.environment }} "dvc remote list"
-          pixi run -e ${{ matrix.environment }} "dvc status -c"
-          pixi run -e ${{ matrix.environment }} download-test-images
+          pixi run -e ${{ matrix.environment }} "dvc remote modify origin url https://${DAGSHUB_TOKEN}@dagshub.com/virtual-zarr/virtual-tiff.dvc --local"
+          pixi run -e ${{ matrix.environment }} "dvc pull --no-run-cache"
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
 
       - name: Running Tests
         run: |
