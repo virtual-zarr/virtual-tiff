@@ -1,4 +1,4 @@
-from urllib.request import pathname2url
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -25,10 +25,11 @@ large_files = [
 
 def test_simple_load_dataset_against_rioxarray(geotiff_file):
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    file_url = pathname2url(geotiff_file, add_scheme=True)
-    ds = loadable_dataset(file_url, registry=registry)
+    filepath = Path(geotiff_file)
+
+    ds = loadable_dataset(filepath.as_uri(), registry=registry)
     assert isinstance(ds, xr.Dataset)
-    expected = rioxarray.open_rasterio(geotiff_file)
+    expected = rioxarray.open_rasterio(str(filepath))
     observed = ds["0"]
     np.testing.assert_allclose(observed.data.squeeze(), expected.data.squeeze())
 
@@ -39,13 +40,12 @@ def test_load_dataset_against_rioxarray(filename):
         pytest.xfail(failures[filename])
     if filename in large_files:
         pytest.skip("Too slow")
-    filepath = f"{resolve_folder('tests/dvc/github/')}/{filename}"
+    filepath = resolve_folder("tests/dvc/github/") / filename
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    file_url = pathname2url(filepath, add_scheme=True)
-    ds = loadable_dataset(file_url, registry=registry)
+    ds = loadable_dataset(filepath.as_uri(), registry=registry)
     assert isinstance(ds, xr.Dataset)
     da = ds["0"]
-    da_expected = rioxarray.open_rasterio(filepath)
+    da_expected = rioxarray.open_rasterio(str(filepath))
     np.testing.assert_allclose(da.data, da_expected.data.squeeze())
 
 
@@ -53,11 +53,10 @@ def test_load_dataset_against_rioxarray(filename):
 def test_virtual_dataset_from_tiff(filename):
     if filename in failures.keys():
         pytest.xfail(failures[filename])
-    filepath = f"{resolve_folder('tests/dvc/github')}/{filename}"
+    filepath = resolve_folder("tests/dvc/github/") / filename
     parser = VirtualTIFF(ifd=0)
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    file_url = pathname2url(filepath, add_scheme=True)
-    ms = parser(file_url, registry=registry)
+    ms = parser(filepath.as_uri(), registry=registry)
     ds = ms.to_virtual_dataset()
     assert isinstance(ds, xr.Dataset)
     # TODO: Add more property tests
