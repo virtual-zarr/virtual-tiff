@@ -1,3 +1,5 @@
+from urllib.request import pathname2url
+
 import numpy as np
 import pytest
 import rioxarray
@@ -23,7 +25,8 @@ large_files = [
 
 def test_simple_load_dataset_against_rioxarray(geotiff_file):
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    ds = loadable_dataset(f"file://{geotiff_file}", registry=registry)
+    file_url = pathname2url(geotiff_file, add_scheme=True)
+    ds = loadable_dataset(file_url, registry=registry)
     assert isinstance(ds, xr.Dataset)
     expected = rioxarray.open_rasterio(geotiff_file)
     observed = ds["0"]
@@ -38,7 +41,8 @@ def test_load_dataset_against_rioxarray(filename):
         pytest.skip("Too slow")
     filepath = f"{resolve_folder('tests/dvc/github/')}/{filename}"
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    ds = loadable_dataset(f"file://{filepath}", registry=registry)
+    file_url = pathname2url(filepath, add_scheme=True)
+    ds = loadable_dataset(file_url, registry=registry)
     assert isinstance(ds, xr.Dataset)
     da = ds["0"]
     da_expected = rioxarray.open_rasterio(filepath)
@@ -52,7 +56,8 @@ def test_virtual_dataset_from_tiff(filename):
     filepath = f"{resolve_folder('tests/dvc/github')}/{filename}"
     parser = VirtualTIFF(ifd=0)
     registry = ObjectStoreRegistry({"file://": LocalStore()})
-    ms = parser(f"file://{filepath}", registry=registry)
+    file_url = pathname2url(filepath, add_scheme=True)
+    ms = parser(file_url, registry=registry)
     ds = ms.to_virtual_dataset()
     assert isinstance(ds, xr.Dataset)
     # TODO: Add more property tests
