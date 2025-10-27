@@ -1,13 +1,14 @@
 from pathlib import Path
+from urllib.parse import urlparse
 
-import pytest
-import xarray as xr
 import numpy as np
+import pytest
 import rioxarray
-from virtual_tiff import VirtualTIFF
+import xarray as xr
 from obstore.store import LocalStore
 from virtualizarr.registry import ObjectStoreRegistry
-from urllib.parse import urlparse
+
+from virtual_tiff import VirtualTIFF
 
 
 @pytest.fixture

@@ -5,10 +5,11 @@ from conftest import (
     resolve_folder,
     rioxarray_comparison,
 )
-from virtualizarr import open_virtual_dataset
-from virtual_tiff import VirtualTIFF
 from obstore.store import LocalStore
+from virtualizarr import open_virtual_dataset
 from virtualizarr.registry import ObjectStoreRegistry
+
+from virtual_tiff import VirtualTIFF
 
 
 def match_error(filepath, error, match):

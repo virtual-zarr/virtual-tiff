@@ -1,7 +1,8 @@
 import base64
-import numpy as np
-from typing import Any
 import struct
+from typing import Any
+
+import numpy as np
 
 
 class FillValueCoder:

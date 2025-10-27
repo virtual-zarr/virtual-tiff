@@ -1,5 +1,6 @@
-from conftest import rioxarray_comparison
 import os
+
+from conftest import rioxarray_comparison
 from obstore.store import S3Store
 from virtualizarr.registry import ObjectStoreRegistry
 

@@ -6,8 +6,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import numpy as np
-
-from zarr.abc.codec import ArrayBytesCodec, ArrayArrayCodec
+from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec
 from zarr.codecs.bytes import Endian
 from zarr.core.buffer import Buffer, NDArrayLike, NDBuffer
 from zarr.core.common import JSON, parse_enum, parse_named_configuration
