@@ -7,9 +7,8 @@ from functools import cached_property
 from typing import Self
 from warnings import warn
 
-import numpy as np
-
 import numcodecs
+import numpy as np
 from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
 from zarr.core.array_spec import ArraySpec
 from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer

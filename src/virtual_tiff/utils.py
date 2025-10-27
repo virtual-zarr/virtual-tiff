@@ -1,4 +1,8 @@
 from __future__ import annotations
+
+import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING
+
 from async_tiff.store import (
     AzureStore,
     GCSStore,
@@ -6,8 +10,6 @@ from async_tiff.store import (
     S3Store,
 )
 from obstore.store import ObjectStore
-from typing import TYPE_CHECKING
-import xml.etree.ElementTree as ET
 
 if TYPE_CHECKING:
     from async_tiff.store import ObjectStore as AsyncTiffObjectStore

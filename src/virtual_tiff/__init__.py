@@ -1,4 +1,5 @@
 from importlib.metadata import version as _version
+
 from .parser import VirtualTIFF
 
 __all__ = ["VirtualTIFF"]

@@ -1,11 +1,12 @@
-import pytest
 import numpy as np
-import xarray as xr
-from virtual_tiff import VirtualTIFF
-from virtualizarr.registry import ObjectStoreRegistry
+import pytest
 import rioxarray
-from conftest import loadable_dataset, github_examples, resolve_folder
+import xarray as xr
+from conftest import github_examples, loadable_dataset, resolve_folder
 from obstore.store import LocalStore
+from virtualizarr.registry import ObjectStoreRegistry
+
+from virtual_tiff import VirtualTIFF
 
 failures = {
     "IBCSO_v2_ice-surface_cog.tif": "ValueError: Invalid range requested, start: 0 end: 0",

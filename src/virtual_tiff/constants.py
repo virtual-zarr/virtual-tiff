@@ -1,19 +1,20 @@
+from numcodecs.zarr3 import LZMA, Zlib
+
 from virtual_tiff.imagecodecs import (
     DeflateCodec,
-    WebpCodec,
-    JpegXLCodec,
-    ZstdCodec,
     JetRawCodec,
-    LZWCodec,
-    PngCodec,
-    LercCodec,
     Jpeg2KCodec,
-    PackBitsCodec,
-    JpegCodec,
-    JpegXRCodec,
     Jpeg8Codec,
+    JpegCodec,
+    JpegXLCodec,
+    JpegXRCodec,
+    LercCodec,
+    LZWCodec,
+    PackBitsCodec,
+    PngCodec,
+    WebpCodec,
+    ZstdCodec,
 )
-from numcodecs.zarr3 import Zlib, LZMA
 
 ENDIAN = {b"MM": "big", b"II": "little"}
 COMPRESSORS = {
