@@ -263,17 +263,21 @@ def _construct_manifest_group(
     urlpath = urlparse(path).path
     tiff = sync(_open_tiff(store=store, path=urlpath))
     attrs: dict[str, Any] = {}
-    manifest_arrays = {}
     if ifd is not None:
-        manifest_arrays[str(ifd)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd], path=path, endian=endian
-        )
-    else:
-        for ind, ifd in enumerate(tiff.ifds):
-            manifest_arrays[str(ind)] = _construct_manifest_array(
-                ifd=ifd, path=path, endian=endian
+        manifest_arrays = {
+            str(ifd): _construct_manifest_array(
+                ifd=tiff.ifds[ifd], path=path, endian=endian
             )
-    return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
+        }
+        return ManifestGroup(manifest_arrays, attributes=attrs)
+    else:
+        manifest_groups = dict()
+        for ind, ifd in enumerate(tiff.ifds):
+            manifest_arrays = {
+                str(ifd): _construct_manifest_array(ifd=ifd, path=path, endian=endian)
+            }
+            manifest_groups[str(ifd)] = ManifestGroup(manifest_arrays, attributes=attrs)
+        return ManifestGroup(groups=manifest_arrays, attributes=attrs)
 
 
 class VirtualTIFF:
