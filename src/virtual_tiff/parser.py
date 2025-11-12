@@ -211,7 +211,6 @@ def _construct_manifest_array(
         sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
-    attributes = _get_attributes(ifd)
     if ifd.tile_height:
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
