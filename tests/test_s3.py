@@ -33,7 +33,7 @@ def test_open_datatree():
         region="us-west-2",
     )
     registry = ObjectStoreRegistry({"s3://sentinel-cogs/sentinel-s2-l2a-cogs": store})
-    parser = VirtualTIFF()
+    parser = VirtualTIFF(ifd_layout="nested")
     manifest_store = parser(filepath, registry=registry)
     dt = xr.open_datatree(
         manifest_store, engine="zarr", zarr_format=3, consolidated=False
