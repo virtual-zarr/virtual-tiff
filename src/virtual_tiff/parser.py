@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
 from urllib.parse import urlparse
 
 import numpy as np
@@ -35,6 +35,12 @@ if TYPE_CHECKING:
     )
 
 
+GDAL_METADATA_TAG = 42112
+GDAL_NODATA_TAG = 42113
+ZSTD_LEVEL_TAG = "65564"
+DEFAULT_ZSTD_LEVEL = 9
+
+
 def _get_compression(ifd: ImageFileDirectory, compression: int):
     codec = COMPRESSORS.get(compression)
     if not codec:
@@ -47,7 +53,7 @@ def _get_compression(ifd: ImageFileDirectory, compression: int):
         )
     if codec.codec_name == "imagecodecs_zstd":
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
-        return ZstdCodec(level=ifd.other_tags.get("65564", 9))
+        return ZstdCodec(level=ifd.other_tags.get("ZSTD_LEVEL_TAG", DEFAULT_ZSTD_LEVEL))
     else:
         return codec()
 
@@ -143,9 +149,9 @@ def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
         if value := getattr(ifd, key):
             attrs[key] = value
     if ifd.other_tags:
-        if gdal_xml := ifd.other_tags.get(42112):
+        if gdal_xml := ifd.other_tags.get(GDAL_METADATA_TAG):
             attrs = {**attrs, **gdal_metadata_to_dict(gdal_xml)}
-        if fill_value := ifd.other_tags.get(42113):
+        if fill_value := ifd.other_tags.get(GDAL_NODATA_TAG):
             attrs["gdal_no_data"] = fill_value
     return attrs
 
@@ -205,7 +211,6 @@ def _construct_manifest_array(
         sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
-    attributes = _get_attributes(ifd)
     if ifd.tile_height:
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
@@ -258,47 +263,128 @@ def _construct_manifest_group(
     *,
     endian: str,
     ifd: int | None = None,
+    ifd_layout: Literal["flat", "nested"] = "flat",
 ) -> ManifestGroup:
+    """Construct a ManifestGroup from TIFF IFDs.
+
+    Args:
+        store: Object store for reading the TIFF
+        path: Full URL path to the TIFF file
+        endian: Byte order ('little' or 'big')
+        ifd: Specific IFD index to process, or None for all IFDs
+        ifd_layout: How to organize IFDs - 'flat' for single group, 'nested' for group per IFD
+
+    Returns:
+        ManifestGroup containing the processed TIFF data
+    """
     # TODO: Make an async approach
     urlpath = urlparse(path).path
     tiff = sync(_open_tiff(store=store, path=urlpath))
+
+    # Build manifest arrays from selected IFDs
+    manifest_arrays = _build_manifest_arrays(tiff, path, endian, ifd)
+
+    # Organize into appropriate group structure
     attrs: dict[str, Any] = {}
+    if ifd_layout == "flat":
+        return _create_flat_group(manifest_arrays, attrs)
+    elif ifd_layout == "nested":
+        return _create_nested_group(manifest_arrays, attrs)
+    else:
+        raise ValueError(
+            f"Expected 'flat' or 'nested' for ifd_layout; got {ifd_layout}"
+        )
+
+
+def _build_manifest_arrays(
+    tiff: TIFF,
+    path: str,
+    endian: str,
+    ifd_index: int | None,
+) -> dict[str, ManifestArray]:
+    """Build manifest arrays from TIFF IFDs.
+
+    Args:
+        tiff: Opened TIFF file
+        path: Full URL path to the TIFF file
+        endian: Byte order
+        ifd_index: Specific IFD to process, or None for all
+
+    Returns:
+        Dictionary mapping IFD indices (as strings) to ManifestArrays
+    """
     manifest_arrays = {}
-    if ifd is not None:
-        manifest_arrays[str(ifd)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd], path=path, endian=endian
+
+    if ifd_index is not None:
+        # Process single specified IFD
+        manifest_arrays[str(ifd_index)] = _construct_manifest_array(
+            ifd=tiff.ifds[ifd_index], path=path, endian=endian
         )
     else:
-        for ind, ifd in enumerate(tiff.ifds):
-            manifest_arrays[str(ind)] = _construct_manifest_array(
+        # Process all IFDs
+        for idx, ifd in enumerate(tiff.ifds):
+            manifest_arrays[str(idx)] = _construct_manifest_array(
                 ifd=ifd, path=path, endian=endian
             )
+
+    return manifest_arrays
+
+
+def _create_flat_group(
+    manifest_arrays: dict[str, ManifestArray],
+    attrs: dict[str, Any],
+) -> ManifestGroup:
+    """Create a flat group with all arrays at the same level."""
     return ManifestGroup(arrays=manifest_arrays, attributes=attrs)
 
 
-class VirtualTIFF:
-    _ifd: int | None
+def _create_nested_group(
+    manifest_arrays: dict[str, ManifestArray],
+    attrs: dict[str, Any],
+) -> ManifestGroup:
+    """Create a nested group with each array in its own subgroup."""
+    from packaging.version import Version
+    from virtualizarr import __version__ as _vz_version
 
+    if Version(_vz_version) < Version("2.2.0"):
+        raise ImportError(
+            "The 'nested' ifd_layout requires VirtualiZarr >= 2.2.0, "
+            f"but you have version {_vz_version}."
+        )
+    groups = {
+        ifd_key: ManifestGroup(
+            arrays={ifd_key: array}, attributes=array._metadata.attributes
+        )
+        for ifd_key, array in manifest_arrays.items()
+    }
+    return ManifestGroup(groups=groups, attributes=attrs)
+
+
+class VirtualTIFF:
     def __init__(
-        self,
-        ifd: int | None = None,
+        self, ifd: int | None = None, ifd_layout: Literal["flat", "nested"] = "flat"
     ) -> None:
         """Configure VirtualTIFF parser.
 
         Args:
-            ifd (int | None, optional): IFD within the TIFF file to virtualize. Defaults to None, meaning that all IFDs will be virtualized as Zarr groups.
+            ifd : IFD within the TIFF file to virtualize. Defaults to None, meaning that all IFDs will be virtualized as Zarr groups.
+            ifd_layout : How to map TIFF IFDs to Zarr groups/arrays. In all cases, an IFD is mapped to a Zarr array. Choose
+                "flat" for all arrays to be contained in a single group. Choose "nested" for each array to be contained in a
+                different group. "nested" is compatible with Xarray's DataTree model, because
+                each node in the DataTree needs to be a Dataset (i.e., group) rather than Dataarray (i.e., array). Default is "flat".
         """
         self._ifd = ifd
+        self.ifd_layout = ifd_layout
 
     def __call__(self, url: str, registry: ObjectStoreRegistry) -> ManifestStore:
         """Produce a ManifestStore from a file path and object store instance.
 
         Args:
-            url (str): URL to the TIFF.
-            registry (ObjectStoreRegistry): ObjectStoreRegistry to use for reading the TIFF.
+            url : URL to the TIFF.
+            registry : ObjectStoreRegistry to use for reading the TIFF.
 
         Returns:
-            ManifestStore: ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
+            ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         parsed = urlparse(url)
         urlpath = parsed.path
@@ -307,7 +393,11 @@ class VirtualTIFF:
         async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
-            store=async_tiff_store, path=url, ifd=self._ifd, endian=endian
+            store=async_tiff_store,
+            path=url,
+            ifd=self._ifd,
+            endian=endian,
+            ifd_layout=self.ifd_layout,
         )
         # Convert to a manifest store
         return ManifestStore(registry=registry, group=manifest_group)
