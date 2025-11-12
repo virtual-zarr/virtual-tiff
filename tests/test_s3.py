@@ -35,6 +35,7 @@ def test_open_datatree():
     registry = ObjectStoreRegistry({"s3://sentinel-cogs/sentinel-s2-l2a-cogs": store})
     parser = VirtualTIFF()
     manifest_store = parser(filepath, registry=registry)
-    assert xr.open_datatree(
+    dt = xr.open_datatree(
         manifest_store, engine="zarr", zarr_format=3, consolidated=False
     )
+    assert isinstance(dt, xr.DataTree)

@@ -274,10 +274,10 @@ def _construct_manifest_group(
         manifest_groups = dict()
         for ind, ifd in enumerate(tiff.ifds):
             manifest_arrays = {
-                str(ifd): _construct_manifest_array(ifd=ifd, path=path, endian=endian)
+                str(ind): _construct_manifest_array(ifd=ifd, path=path, endian=endian)
             }
-            manifest_groups[str(ifd)] = ManifestGroup(manifest_arrays, attributes=attrs)
-        return ManifestGroup(groups=manifest_arrays, attributes=attrs)
+            manifest_groups[str(ind)] = ManifestGroup(manifest_arrays, attributes=attrs)
+        return ManifestGroup(groups=manifest_groups, attributes=attrs)
 
 
 class VirtualTIFF:
