@@ -343,6 +343,14 @@ def _create_nested_group(
     attrs: dict[str, Any],
 ) -> ManifestGroup:
     """Create a nested group with each array in its own subgroup."""
+    from packaging.version import Version
+    from virtualizarr import __version__ as _vz_version
+
+    if Version(_vz_version) < Version("2.2.0"):
+        raise ImportError(
+            "The 'nested' ifd_layout requires VirtualiZarr >= 2.2.0, "
+            f"but you have version {_vz_version}."
+        )
     groups = {
         ifd_key: ManifestGroup(
             arrays={ifd_key: array}, attributes=array._metadata.attributes

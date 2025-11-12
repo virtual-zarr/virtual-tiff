@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     "obstore",
     "async_tiff",
-    "virtualizarr>=2.2.0",
+    "virtualizarr>=2.0",
     "imagecodecs",
     "imagecodecs-numcodecs",
     "zarr",
@@ -79,9 +79,7 @@ python = "3.12.*"
 rioxarray = "*"
 rasterio = "*"
 xarray = "==2025.6.0"
-
-[tool.pixi.feature.test.pypi-dependencies]
-virtualizarr = "==2.2.0"
+virtualizarr = "==2.0.0"
 
 # Define commands to run within the test environments
 [tool.pixi.feature.test.tasks]
