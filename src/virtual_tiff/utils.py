@@ -3,12 +3,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
-from async_tiff.store import (
-    AzureStore,
-    GCSStore,
-    LocalStore,
-    S3Store,
-)
+from async_tiff.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
 from obstore.store import ObjectStore
 
 if TYPE_CHECKING:
@@ -22,6 +17,7 @@ store_matching = {
     "AzureStore": AzureStore,
     "S3Store": S3Store,
     "GCSStore": GCSStore,
+    "HTTPStore": HTTPStore,
 }
 
 
