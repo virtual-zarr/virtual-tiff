@@ -161,10 +161,9 @@ def _add_dim_for_samples_per_pixel(
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     sample_dim_length = int(ifd.samples_per_pixel)
     shape = (sample_dim_length,) + shape
-    if ifd.photometric_interpretation == 2 and ifd.planar_configuration == 2:
-        # For PlanarConfiguration = 2, the StripOffsets for the component planes are stored
-        # in the indicated order: first the Red component plane StripOffsets, then the Green plane
-        # StripOffsets, then the Blue plane StripOffsets.
+    if ifd.planar_configuration == 2:
+        # For PlanarConfiguration = 2, the offsets for each component plane are stored
+        # separately. Each plane has its own set of offsets, ordered by component.
         chunks = (1,) + chunks
     else:
         chunks = (sample_dim_length,) + chunks
