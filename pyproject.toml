@@ -73,21 +73,25 @@ python = "3.11.*"
 [tool.pixi.feature.py314.dependencies]
 python = "3.14.*"
 
-# Define a feature set for minimum versions
-[tool.pixi.feature.minimum-versions.dependencies]
+[tool.pixi.feature.test.dependencies]
 rioxarray = "*"
 rasterio = "*"
+
+# Define a feature set for minimum versions
+[tool.pixi.feature.minimum-versions.dependencies]
 xarray = "==2025.6.0"
+
+[tool.pixi.feature.minimum-versions.pypi-dependencies]
 virtualizarr = "==2.0.0"
+async_tiff = "==0.4.0"
 
 # Define a feature set for latest versions
 [tool.pixi.feature.latest-versions.dependencies]
-rioxarray = "*"
-rasterio = "*"
 xarray = "*"
 
 [tool.pixi.feature.latest-versions.pypi-dependencies]
 virtualizarr = "*"
+async_tiff = "*"
 
 # Define commands to run within the test environments
 [tool.pixi.feature.test.tasks]
