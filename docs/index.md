@@ -71,6 +71,17 @@ ds = open_virtual_dataset(
 3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
 4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
 
+!!! tip "DVC authentication"
+    If you see errors like `Missing cache files` or `401 Unauthorized` when pulling test data, you may need to configure DVC credentials for the DagsHub remote. Create a `.dvc/config.local` file (which is gitignored) with your DagsHub credentials:
+
+    ```bash
+    dvc remote modify origin --local auth basic
+    dvc remote modify origin --local user <your-dagshub-username>
+    dvc remote modify origin --local password <your-dagshub-token>
+    ```
+
+    You can generate a token from your [DagsHub account settings](https://dagshub.com/user/settings/tokens).
+
 ## TIFF structure support
 
 | TIFF Structure/Feature         | Supported | Notes |
