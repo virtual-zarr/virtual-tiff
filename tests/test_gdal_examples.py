@@ -6,6 +6,8 @@ from conftest import (
     rioxarray_comparison,
 )
 from obstore.store import LocalStore
+from packaging.version import Version
+from rioxarray import __version__ as _rioxarray_version
 from virtualizarr import open_virtual_dataset
 from virtualizarr.registry import ObjectStoreRegistry
 
@@ -26,6 +28,8 @@ def match_error(filepath, error, match):
 def run_gdal_test(filename, filepath):
     if filename in skip:
         pytest.xfail("Known failure")
+    if filename == "float16.tif" and Version(_rioxarray_version) < Version("0.20.0"):
+        pytest.xfail("rioxarray<0.20.0 does not support float16")
     filepath = f"{resolve_folder(filepath)}/{filename}"
     if filename in unknown_compressor:
         match_error(

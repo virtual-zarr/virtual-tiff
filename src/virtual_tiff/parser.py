@@ -148,11 +148,10 @@ def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
     for key in extra_keys:
         if value := getattr(ifd, key):
             attrs[key] = value
-    if ifd.other_tags:
-        if gdal_xml := ifd.other_tags.get(GDAL_METADATA_TAG):
-            attrs = {**attrs, **gdal_metadata_to_dict(gdal_xml)}
-        if fill_value := ifd.other_tags.get(GDAL_NODATA_TAG):
-            attrs["gdal_no_data"] = fill_value
+    if gdal_metadata := ifd.gdal_metadata:
+        attrs = {**attrs, **gdal_metadata_to_dict(gdal_metadata)}
+    if fill_value := ifd.gdal_nodata:
+        attrs["gdal_no_data"] = fill_value
     return attrs
 
 
