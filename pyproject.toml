@@ -111,8 +111,8 @@ download-test-images = { cmd = "dvc pull" }
 # Define which features and groups to include in different pixi (similar to conda) environments
 [tool.pixi.environments]
 docs = ["dev", "docs"]
-test-min-versions = ["dev", "test", "minimum-versions", "py311"] # test minimum versions with python 3.11
-test = ["dev", "test", "latest-versions", "py314"] # test latest versions with python 3.14
+test-min-versions = ["dev", "test", "dvc", "minimum-versions", "py311"] # test minimum versions with python 3.11
+test = ["dev", "test", "dvc", "latest-versions", "py314"] # test latest versions with python 3.14
 dvc = ["dvc"] # managing dvc
 [tool.coverage.run]
 source_pkgs = [""]
