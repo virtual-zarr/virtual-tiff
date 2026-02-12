@@ -55,8 +55,6 @@ dev = [
   "mkdocs>=1.6.1",
   "mkdocstrings>=0.29.1",
   "mkdocstrings-python>=1.16.10",
-  "rioxarray>=0.19.0",
-  "netCDF4",
 ]
 
 [tool.pixi.workspace]
