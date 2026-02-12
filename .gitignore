@@ -82,4 +82,3 @@ tests/.hypothesis
 zarr/version.py
 
 site/
-pixi.lock
