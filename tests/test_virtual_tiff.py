@@ -60,7 +60,7 @@ def test_virtual_dataset_from_tiff(filename):
 
 def test_local_store_with_prefix():
     data_dir = resolve_folder('tests/dvc/github').absolute()
-    filepath = data_dir / "chirps-v2.0.2025.01.tif"
+    filepath = data_dir / "test_reference.tif"
     parser = VirtualTIFF(ifd=0)
     registry = ObjectStoreRegistry({"file://": LocalStore(data_dir)})
     ms = parser(f"file://{filepath}", registry=registry)
