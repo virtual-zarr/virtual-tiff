@@ -75,7 +75,6 @@ python = "3.11.*"
 python = "3.14.*"
 
 [tool.pixi.feature.test.dependencies]
-rioxarray = "*"
 rasterio = "*"
 
 # Define a feature set for minimum versions
