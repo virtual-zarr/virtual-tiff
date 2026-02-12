@@ -36,6 +36,7 @@ jobs:
 
       - name: List installed libraries
         run: |
+          pixi lock
           pixi install --environment ${{ matrix.environment }}
           pixi list --environment ${{ matrix.environment }}
 
