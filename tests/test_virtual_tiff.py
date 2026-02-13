@@ -56,3 +56,13 @@ def test_virtual_dataset_from_tiff(filename):
     ds = ms.to_virtual_dataset()
     assert isinstance(ds, xr.Dataset)
     # TODO: Add more property tests
+
+
+def test_local_store_with_prefix():
+    data_dir = resolve_folder('tests/dvc/github').absolute()
+    filepath = data_dir / "test_reference.tif"
+    parser = VirtualTIFF(ifd=0)
+    registry = ObjectStoreRegistry({"file://": LocalStore(data_dir)})
+    ms = parser(f"file://{filepath}", registry=registry)
+    ds = ms.to_virtual_dataset()
+    assert isinstance(ds, xr.Dataset)

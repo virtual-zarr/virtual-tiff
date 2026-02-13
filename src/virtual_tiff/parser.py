@@ -171,7 +171,7 @@ def _add_dim_for_samples_per_pixel(
 
 def _construct_chunk_manifest(
     *,
-    path: str,
+    url: str,
     shape: tuple[int, ...],
     chunks: tuple[int, ...],
     offsets: Iterable[int],
@@ -187,9 +187,9 @@ def _construct_chunk_manifest(
         )
     offsets = offsets.reshape(chunk_manifest_shape)
     byte_counts = byte_counts.reshape(chunk_manifest_shape)
-    paths = np.full_like(offsets, path, dtype=np.dtypes.StringDType)
+    urls = np.full_like(offsets, url, dtype=np.dtypes.StringDType)
     return ChunkManifest.from_arrays(
-        paths=paths,
+        paths=urls,
         offsets=offsets,
         lengths=byte_counts,
     )
@@ -200,7 +200,7 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
 
 
 def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, path: str, endian: str
+    *, ifd: ImageFileDirectory, url: str, endian: str
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
@@ -229,7 +229,7 @@ def _construct_manifest_array(
         )
         dimension_names = ("band",) + dimension_names
     chunk_manifest = _construct_chunk_manifest(
-        path=path, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
+        url=url, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype, endian=endian)
     attributes = _get_attributes(ifd)
@@ -256,6 +256,7 @@ def _construct_manifest_array(
 
 
 def _construct_manifest_group(
+    url: str,
     store: ObjectStore,
     path: str,
     *,
@@ -276,11 +277,10 @@ def _construct_manifest_group(
         ManifestGroup containing the processed TIFF data
     """
     # TODO: Make an async approach
-    urlpath = urlparse(path).path
-    tiff = sync(_open_tiff(store=store, path=urlpath))
+    tiff = sync(_open_tiff(store=store, path=path))
 
     # Build manifest arrays from selected IFDs
-    manifest_arrays = _build_manifest_arrays(tiff, path, endian, ifd)
+    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
 
     # Organize into appropriate group structure
     attrs: dict[str, Any] = {}
@@ -296,7 +296,7 @@ def _construct_manifest_group(
 
 def _build_manifest_arrays(
     tiff: TIFF,
-    path: str,
+    url: str,
     endian: str,
     ifd_index: int | None,
 ) -> dict[str, ManifestArray]:
@@ -316,13 +316,13 @@ def _build_manifest_arrays(
     if ifd_index is not None:
         # Process single specified IFD
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index], path=path, endian=endian
+            ifd=tiff.ifds[ifd_index], url=url, endian=endian
         )
     else:
         # Process all IFDs
         for idx, ifd in enumerate(tiff.ifds):
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd, path=path, endian=endian
+                ifd=ifd, url=url, endian=endian
             )
 
     return manifest_arrays
@@ -384,15 +384,14 @@ class VirtualTIFF:
         Returns:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
-        parsed = urlparse(url)
-        urlpath = parsed.path
         store, path_in_store = registry.resolve(url)
-        endian = ENDIAN[store.get_range(urlpath, start=0, end=2).to_bytes()]
+        endian = ENDIAN[store.get_range(path_in_store, start=0, end=2).to_bytes()]
         async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
+            url,
             store=async_tiff_store,
-            path=url,
+            path=path_in_store,
             ifd=self._ifd,
             endian=endian,
             ifd_layout=self.ifd_layout,
