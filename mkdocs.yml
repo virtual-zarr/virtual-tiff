@@ -4,7 +4,7 @@ repo_name: virtual-zarr/virtual-tiff
 repo_url: https://github.com/virtual-zarr/virtual-tiff
 site_description: Produce and explore virtual Zarr with TIFFs.
 site_author: Max Jones
-site_url: https://virtual-tiff.readthedocs.io
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://virtual-tiff.readthedocs.io"]
 docs_dir: docs
 
 extra:
