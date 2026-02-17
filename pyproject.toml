@@ -103,6 +103,7 @@ virtualizarr = { git = "https://github.com/maxrjones/VirtualiZarr.git", branch =
 xarray = { git = "https://github.com/maxrjones/xarray.git", branch = "variable-chunking" }
 async_tiff = "*"
 rioxarray = "*"
+scipy = "*"
 
 
 # Define commands to run within the test environments
@@ -113,6 +114,15 @@ run-tests-cov = { cmd = "pytest --verbose --cov=src --cov=term-missing" }
 run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
 run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
 download-test-images = { cmd = "dvc pull" }
+
+
+# Define commands to run within the test environments
+[tool.pixi.feature.chunk-grid-ext.tasks]
+run-mypy = { cmd = "mypy src" }
+run-tests = { cmd = "pytest --verbose --durations=10" }
+run-tests-cov = { cmd = "pytest --verbose --cov=src --cov=term-missing" }
+run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
+run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
 
 # Define commands to run within the docs environment
 [tool.pixi.feature.docs.tasks]
