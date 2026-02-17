@@ -37,6 +37,11 @@ class ChunkyCodec(ArrayBytesCodec):
         return cls(**configuration_parsed)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
+        if self.endian is not None:
+            return {
+                "name": "ChunkyCodec",
+                "configuration": {"endian": self.endian.value},
+            }
         return {"name": "ChunkyCodec"}
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
