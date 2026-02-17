@@ -56,6 +56,14 @@ dev = [
   "mkdocstrings>=0.29.1",
   "mkdocstrings-python>=1.16.10",
 ]
+upstream = [
+    'numcodecs @ git+https://github.com/zarr-developers/numcodecs',
+    'zarr @ git+https://github.com/zarr-developers/zarr-python',
+    'obstore @ git+https://github.com/developmentseed/obstore@main#subdirectory=obstore',
+    'async_tiff @ git+https://github.com/developmentseed/async-tiff@main#subdirectory=python',
+    # optional
+    'icechunk @ git+https://github.com/earth-mover/icechunk@main#subdirectory=icechunk-python',
+]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -65,9 +73,19 @@ platforms = ["linux-64", "osx-64", "osx-arm64"]
 [tool.pixi.pypi-dependencies]
 virtual_tiff = { path = ".", editable = true }
 
+# Define a feature set for minimum versions
+[tool.pixi.feature.dev.dependencies]
+rioxarray = "*"
+rasterio = "*"
+
+
 # Define a feature set for Python 3.11
 [tool.pixi.feature.py311.dependencies]
 python = "3.11.*"
+
+# Define a feature set for Python 3.13
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"
 
 # Define a feature set for Python 3.14
 [tool.pixi.feature.py314.dependencies]
@@ -113,6 +131,7 @@ readthedocs = "rm -rf $READTHEDOCS_OUTPUT/html && cp -r site $READTHEDOCS_OUTPUT
 docs = ["dev", "docs"]
 test-min-versions = ["dev", "test", "minimum-versions", "py311"] # test minimum versions with python 3.11
 test = ["dev", "test", "latest-versions", "py314"] # test latest versions with python 3.14
+upstream = ["dev", "test", "upstream", "py313"] # test upstream versions with python 3.13
 
 [tool.coverage.run]
 source_pkgs = [""]
