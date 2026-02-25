@@ -1,100 +1,104 @@
-# Copied and slightly adapted from https://github.com/zarr-developers/numcodecs/blob/main/numcodecs/zarr3.py
+# Adapted from https://github.com/zarr-developers/zarr-python/blob/main/src/zarr/codecs/numcodecs/_codecs.py
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from functools import cached_property
-from typing import Self
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Self,
+    cast,
+    overload,
+)
 from warnings import warn
 
-import numcodecs
 import numpy as np
-from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
+from zarr.abc.codec import (
+    ArrayArrayCodec,
+    ArrayBytesCodec,
+    BytesBytesCodec,
+    CodecJSON,
+    CodecJSON_V2,
+    CodecJSON_V3,
+)
 from zarr.core.array_spec import ArraySpec
 from zarr.core.buffer import Buffer, BufferPrototype, NDBuffer
 from zarr.core.buffer.cpu import as_numpy_array_wrapper
 from zarr.core.common import JSON
+from zarr.registry import get_numcodec
 
-CODEC_PREFIX = "imagecodecs_"
+from virtual_tiff.codecs import check_codecjson_v2
+
+if TYPE_CHECKING:
+    from zarr.abc.numcodec import Numcodec
 
 
-def _expect_name_prefix(codec_name: str) -> str:
-    if not codec_name.startswith(CODEC_PREFIX):
-        raise ValueError(
-            f"Expected name to start with '{CODEC_PREFIX}'. Got {codec_name} instead."
-        )  # pragma: no cover
-    return codec_name.removeprefix(CODEC_PREFIX)
+ZarrFormat = Literal[2, 3]
 
 
 @dataclass(frozen=True)
 class _ImageCodecsCodec:
     codec_name: str
-    codec_config: JSON
+    _codec: Numcodec
+    codec_config: Mapping[str, Any]
 
-    def __init_subclass__(cls, *, codec_name: str | None = None, **kwargs):
-        """To be used only when creating the actual public-facing codec class."""
-        super().__init_subclass__(**kwargs)
-        if codec_name is not None:
-            namespace = codec_name
-
-            cls_name = f"{CODEC_PREFIX}{namespace}.{cls.__name__}"
-            cls.codec_name = f"{CODEC_PREFIX}{namespace}"
-            cls.__doc__ = f"""
-            See :class:`{cls_name}` for more details and parameters.
-            """
-
-    def __init__(self, **codec_config: JSON) -> None:
-        if not self.codec_name:
-            raise ValueError(
-                "The codec name needs to be supplied through the `codec_name` attribute."
-            )  # pragma: no cover
-        _expect_name_prefix(self.codec_name)
-
-        if "id" not in codec_config:
-            codec_config = {
-                "id": self.codec_name,  # type: ignore
-                **codec_config,
-            }
-        elif codec_config["id"] != self.codec_name:
-            raise ValueError(
-                f"Codec id does not match {self.codec_name}. Got: {codec_config['id']}."
-            )  # pragma: no cover
-
-        object.__setattr__(self, "codec_config", codec_config)
+    def __init__(self, **codec_config: Any) -> None:
+        codec = get_numcodec(
+            {
+                "id": self.codec_name,
+                **{k: v for k, v in codec_config.items() if k != "id"},
+            }  # type: ignore[typeddict-item]
+        )
+        object.__setattr__(self, "_codec", codec)
+        object.__setattr__(self, "codec_config", codec.get_config())
         warn(
             "Imagecodecs codecs are not in the Zarr version 3 specification and "
             "may not be supported by other zarr implementations.",
             category=UserWarning,
+            stacklevel=2,
         )
 
-    @cached_property
-    def _codec(self) -> numcodecs.abc.Codec:
-        return numcodecs.get_codec(dict(self.codec_config))
+    def to_dict(self) -> dict[str, JSON]:
+        return cast(dict[str, JSON], self.to_json(zarr_format=3))
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        configuration = data.get("configuration", {})
-        return cls(**configuration)
+        return cls.from_json(data)  # type: ignore[arg-type]
 
-    def to_dict(self) -> JSON:
+    @classmethod
+    def _from_json_v2(cls, data: CodecJSON_V2) -> Self:
+        return cls(**data)
+
+    @classmethod
+    def _from_json_v3(cls, data: CodecJSON_V3) -> Self:
+        if isinstance(data, str):
+            return cls()
+        return cls(**data.get("configuration", {}))
+
+    @classmethod
+    def from_json(cls, data: CodecJSON) -> Self:
+        if check_codecjson_v2(data):
+            return cls._from_json_v2(data)  # type: ignore[arg-type]
+        return cls._from_json_v3(data)  # type: ignore[arg-type]
+
+    @overload
+    def to_json(self, zarr_format: Literal[2]) -> CodecJSON_V2: ...
+    @overload
+    def to_json(self, zarr_format: Literal[3]) -> CodecJSON_V3: ...
+
+    def to_json(self, zarr_format: ZarrFormat) -> CodecJSON_V2 | CodecJSON_V3:
         codec_config = {k: v for k, v in self.codec_config.items() if k != "id"}
-        if codec_config:
-            return {
-                "name": self.codec_name,
-                "configuration": codec_config,
-            }
-        return {"name": self.codec_name}
-
-    def compute_encoded_size(
-        self, input_byte_length: int, chunk_spec: ArraySpec
-    ) -> int:
-        raise NotImplementedError  # pragma: no cover
+        if zarr_format == 2:
+            return {"id": self.codec_name, **codec_config}  # type: ignore[return-value, typeddict-item]
+        else:
+            if codec_config:
+                return {"name": self.codec_name, "configuration": codec_config}
+            return {"name": self.codec_name}
 
 
 class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
-    def __init__(self, **codec_config: JSON) -> None:
-        super().__init__(**codec_config)
-
     async def _decode_single(
         self, chunk_bytes: Buffer, chunk_spec: ArraySpec
     ) -> Buffer:
@@ -116,11 +120,13 @@ class _ImageCodecsBytesBytesCodec(_ImageCodecsCodec, BytesBytesCodec):
     ) -> Buffer:
         return await asyncio.to_thread(self._encode, chunk_bytes, chunk_spec.prototype)
 
+    def compute_encoded_size(
+        self, input_byte_length: int, chunk_spec: ArraySpec
+    ) -> int:
+        raise NotImplementedError
+
 
 class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
-    def __init__(self, **codec_config: JSON) -> None:
-        super().__init__(**codec_config)
-
     async def _decode_single(
         self, chunk_array: NDBuffer, chunk_spec: ArraySpec
     ) -> NDBuffer:
@@ -137,11 +143,13 @@ class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
         out = await asyncio.to_thread(self._codec.encode, chunk_ndarray)
         return chunk_spec.prototype.nd_buffer.from_ndarray_like(out)
 
+    def compute_encoded_size(
+        self, input_byte_length: int, chunk_spec: ArraySpec
+    ) -> int:
+        raise NotImplementedError
+
 
 class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
-    def __init__(self, **codec_config: JSON) -> None:
-        super().__init__(**codec_config)
-
     async def _decode_single(
         self, chunk_buffer: Buffer, chunk_spec: ArraySpec
     ) -> NDBuffer:
@@ -151,16 +159,25 @@ class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
             out.reshape(chunk_spec.shape)
         )
 
+    def compute_encoded_size(
+        self, input_byte_length: int, chunk_spec: ArraySpec
+    ) -> int:
+        raise NotImplementedError
+
 
 # array-to-array codecs ("filters")
-class DeltaCodec(_ImageCodecsArrayArrayCodec, codec_name="delta"):
+class DeltaCodec(_ImageCodecsArrayArrayCodec):
+    codec_name = "imagecodecs_delta"
+
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
         return chunk_spec
 
 
-class FloatPredCodec(_ImageCodecsArrayArrayCodec, codec_name="floatpred"):
+class FloatPredCodec(_ImageCodecsArrayArrayCodec):
+    codec_name = "imagecodecs_floatpred"
+
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         if astype := self.codec_config.get("astype"):
             return replace(chunk_spec, dtype=np.dtype(astype))  # type: ignore[call-overload]
@@ -170,56 +187,56 @@ class FloatPredCodec(_ImageCodecsArrayArrayCodec, codec_name="floatpred"):
 # bytes-to-bytes codecs
 
 
-class DeflateCodec(_ImageCodecsBytesBytesCodec, codec_name="deflate"):
-    pass
+class DeflateCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_deflate"
 
 
-class JetRawCodec(_ImageCodecsBytesBytesCodec, codec_name="jetraw"):
-    pass
+class JetRawCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jetraw"
 
 
-class JpegCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg"):
-    pass
+class JpegCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jpeg"
 
 
-class Jpeg8Codec(_ImageCodecsBytesBytesCodec, codec_name="jpeg8"):
-    pass
+class Jpeg8Codec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jpeg8"
 
 
-class Jpeg2KCodec(_ImageCodecsBytesBytesCodec, codec_name="jpeg2k"):
-    pass
+class Jpeg2KCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jpeg2k"
 
 
-class JpegXRCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxr"):
-    pass
+class JpegXRCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jpegxr"
 
 
-class JpegXLCodec(_ImageCodecsBytesBytesCodec, codec_name="jpegxl"):
-    pass
+class JpegXLCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_jpegxl"
 
 
-class LercCodec(_ImageCodecsBytesBytesCodec, codec_name="lerc"):
-    pass
+class LercCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_lerc"
 
 
-class LZWCodec(_ImageCodecsBytesBytesCodec, codec_name="lzw"):
-    pass
+class LZWCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_lzw"
 
 
-class PackBitsCodec(_ImageCodecsBytesBytesCodec, codec_name="packbits"):
-    pass
+class PackBitsCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_packbits"
 
 
-class PngCodec(_ImageCodecsBytesBytesCodec, codec_name="png"):
-    pass
+class PngCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_png"
 
 
-class WebpCodec(_ImageCodecsBytesBytesCodec, codec_name="webp"):
-    pass
+class WebpCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_webp"
 
 
-class ZstdCodec(_ImageCodecsBytesBytesCodec, codec_name="zstd"):
-    pass
+class ZstdCodec(_ImageCodecsBytesBytesCodec):
+    codec_name = "imagecodecs_zstd"
 
 
 __all__ = [
