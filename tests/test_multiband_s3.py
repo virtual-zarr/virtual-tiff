@@ -4,7 +4,10 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
+from .conftest import requires_network
 
+
+@requires_network
 def test_multiband_planar_tiff_from_source_coop():
     """Test multi-band TIFF with PlanarConfiguration=2 and non-RGB PhotometricInterpretation.
 

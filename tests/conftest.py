@@ -10,6 +10,26 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
+requires_network = pytest.mark.network
+
+
+# Pytest configuration
+def pytest_addoption(parser):
+    """Add command-line flags for pytest."""
+    parser.addoption(
+        "--run-network-tests",
+        action="store_true",
+        help="runs tests requiring a network connection",
+    )
+
+
+def pytest_runtest_setup(item):
+    """Skip network tests unless explicitly enabled."""
+    if "network" in item.keywords and not item.config.getoption("--run-network-tests"):
+        pytest.skip(
+            "set --run-network-tests to run tests requiring an internet connection"
+        )
+
 
 @pytest.fixture
 def geotiff_file(tmp_path: Path) -> str:
