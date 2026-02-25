@@ -21,6 +21,10 @@ def test_imagecodecs_roundtrip():
     roundtripped = LZWCodec.from_dict(output)
     assert codec == roundtripped
     assert "name" not in output.get("configuration", {})
+    output = roundtripped.to_dict()
+    roundtripped = LZWCodec.from_dict(output)
+    assert codec == roundtripped
+    assert "name" not in output.get("configuration", {})
 
 
 @pytest.mark.parametrize("codec_cls", [LZWCodec, DeflateCodec])
