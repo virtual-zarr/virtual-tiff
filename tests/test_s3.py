@@ -2,13 +2,15 @@ import os
 
 import pytest
 import xarray as xr
-from conftest import rioxarray_comparison
 from obstore.store import S3Store
 from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
+from .conftest import requires_network, rioxarray_comparison
 
+
+@requires_network
 def test_load_s3_dataset_against_rioxarray():
     filepath = "s3://sentinel-cogs/sentinel-s2-l2a-cogs/12/S/UF/2022/6/S2B_12SUF_20220609_0_L2A/B04.tif"
     os.environ["AWS_NO_SIGN_REQUEST"] = "True"
@@ -23,6 +25,7 @@ def test_load_s3_dataset_against_rioxarray():
     rioxarray_comparison(filepath, registry=registry)
 
 
+@requires_network
 def test_open_datatree():
     from packaging.version import Version
     from virtualizarr import __version__ as _vz_version

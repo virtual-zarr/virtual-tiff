@@ -1,10 +1,4 @@
 import pytest
-from conftest import (
-    gdal_autotest_examples,
-    gdal_gcore_examples,
-    resolve_folder,
-    rioxarray_comparison,
-)
 from obstore.store import LocalStore
 from packaging.version import Version
 from rioxarray import __version__ as _rioxarray_version
@@ -12,6 +6,13 @@ from virtualizarr import open_virtual_dataset
 from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
+
+from .conftest import (
+    gdal_autotest_examples,
+    gdal_gcore_examples,
+    resolve_folder,
+    rioxarray_comparison,
+)
 
 
 def match_error(filepath, error, match):

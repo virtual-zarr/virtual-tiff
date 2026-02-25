@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
-from urllib.parse import urlparse
 
 import numpy as np
 from async_tiff import TIFF
