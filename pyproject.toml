@@ -49,7 +49,7 @@ dev = [
   "pytest-xdist",
   "ruff",
   "s3fs",
-  "netCDF4",
+  "scipy",
   "earthaccess",
   # docs
   "mkdocs-material[imaging]>=9.6.14",
