@@ -63,6 +63,13 @@ def gdal_examples():
     return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
+def geotiff_test_data_examples():
+    """Recursively find all .tif files under tests/data/geotiff-test-data/, returning paths relative to geotiff-test-data/."""
+    data_dir = resolve_folder("tests/data/geotiff-test-data")
+    tif_files = sorted(data_dir.rglob("*.tif"))
+    return [str(f.relative_to(data_dir)) for f in tif_files]
+
+
 def loadable_dataset(filepath, registry):
     parser = VirtualTIFF(ifd=0)
     ms = parser(filepath, registry=registry)

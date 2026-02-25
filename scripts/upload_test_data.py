@@ -82,6 +82,9 @@ def build_readme(all_files):
     # Classify files
     gdal_files = sorted(f for f in all_files if f.startswith("gdal/"))
     github_files = sorted(f for f in all_files if f.startswith("github/"))
+    geotiff_test_data_files = sorted(
+        f for f in all_files if f.startswith("geotiff-test-data/")
+    )
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -154,6 +157,22 @@ def build_readme(all_files):
             lines.append(f"| `{filename}` | {url} | {license_info} |")
 
         lines.append("")
+
+    # geotiff-test-data section
+    if geotiff_test_data_files:
+        lines += [
+            "### geotiff-test-data (`geotiff-test-data/`)",
+            "",
+            f"{len(geotiff_test_data_files)} files from the "
+            "[geotiff-test-data](https://github.com/developmentseed/geotiff-test-data) "
+            "repository.",
+            "",
+            "- **Source:** <https://github.com/developmentseed/geotiff-test-data>",
+            "- **License:** MIT (synthetic fixtures); see individual README files "
+            "in real_data/ subdirectories for real-world data licenses",
+            "- **Copyright:** Development Seed and contributors",
+            "",
+        ]
 
     lines += [
         "## Usage",
