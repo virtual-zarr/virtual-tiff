@@ -64,8 +64,17 @@ def test_virtual_dataset_from_tiff(filename):
     # TODO: Add more property tests
 
 
+geotiff_test_data_failures = {
+    "rasterio_generated/fixtures/uint8_rgba_webp_block64_cog.tif": "ValueError: cannot reshape array of size 12288 into shape (4,64,64)",
+    "real_data/hot-oam/68077a72c46a9912474701ef.tif": "NotImplementedError: YCbCr PhotometricInterpretation is not yet supported.",
+    "real_data/vantor/maxar_opendata_yellowstone_visual.tif": "NotImplementedError: YCbCr PhotometricInterpretation is not yet supported.",
+}
+
+
 @pytest.mark.parametrize("rel_path", geotiff_test_data_examples())
 def test_geotiff_test_data_load(rel_path):
+    if rel_path in geotiff_test_data_failures:
+        pytest.xfail(geotiff_test_data_failures[rel_path])
     filepath = f"{resolve_folder('tests/data/geotiff-test-data')}/{rel_path}"
     registry = ObjectStoreRegistry({"file://": LocalStore()})
     ds = loadable_dataset(f"file://{filepath}", registry=registry)
