@@ -2,10 +2,11 @@
 """Download test TIFF files from a public S3 bucket to tests/data/.
 
 This is the primary way to get test data for running the test suite.
-All test files (GDAL and external) are mirrored in S3.
+All test files (GDAL, external, and geotiff-test-data) are mirrored in S3.
 
-To populate S3 from original sources, use sync_gdal_tiffs.py and
-sync_external_tiffs.py followed by upload_test_data.py.
+To populate S3 from original sources, use sync_gdal_tiffs.py,
+sync_external_tiffs.py, and sync_geotiff_test_data.py followed by
+upload_test_data.py.
 
 Usage:
     # Download new files
