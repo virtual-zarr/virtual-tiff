@@ -39,15 +39,22 @@ jobs:
           pixi install --environment ${{ matrix.environment }}
           pixi list --environment ${{ matrix.environment }}
 
-      - name: Cache test data
-        uses: actions/cache@v4
+      - name: Restore test data cache
+        uses: actions/cache/restore@v4
         with:
           path: tests/data
-          key: test-data-v1
+          key: test-data-${{ hashFiles('scripts/github_sources.json') }}
 
       - name: Download test images
         run: |
           pixi run -e ${{ matrix.environment }} download-test-images
+
+      - name: Save test data cache
+        if: matrix.environment == 'test'
+        uses: actions/cache/save@v4
+        with:
+          path: tests/data
+          key: test-data-${{ hashFiles('scripts/github_sources.json') }}
 
       - name: Running Tests
         run: |
