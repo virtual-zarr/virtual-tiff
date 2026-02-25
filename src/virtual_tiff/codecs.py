@@ -1,21 +1,44 @@
-# Copied and modified from https://github.com/zarr-developers/zarr-python/blob/bb55f0c58320a6d27be3a0ba918feee398a53db4/src/zarr/codecs/bytes.py
-
+# Adapted from https://github.com/zarr-developers/zarr-python/blob/main/src/zarr/codecs/bytes.py and https://github.com/zarr-developers/zarr-python/pull/3332
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Self, cast, overload
 
 import numpy as np
-from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec
+from zarr.abc.codec import (
+    ArrayArrayCodec,
+    ArrayBytesCodec,
+    CodecJSON,
+    CodecJSON_V2,
+    CodecJSON_V3,
+)
 from zarr.codecs.bytes import Endian
 from zarr.core.buffer import Buffer, NDArrayLike, NDBuffer
-from zarr.core.common import JSON, parse_enum, parse_named_configuration
+from zarr.core.common import JSON
 from zarr.registry import register_codec
 
 if TYPE_CHECKING:
-    from typing import Self
-
     from zarr.core.array_spec import ArraySpec
+
+
+def check_codecjson_v2(data: object) -> bool:
+    return isinstance(data, Mapping) and "id" in data and isinstance(data["id"], str)
+
+
+ZarrFormat = Literal[2, 3]
+
+
+def _parse_endian(data: object) -> Endian | None:
+    if data is None:
+        return None
+    if isinstance(data, Endian):
+        return data
+    if isinstance(data, str) and data in ("little", "big"):
+        return Endian(data)
+    raise ValueError(
+        f"Invalid endian value: {data!r}. Expected 'little', 'big', or None."
+    )
 
 
 @dataclass(frozen=True)
@@ -25,24 +48,56 @@ class ChunkyCodec(ArrayBytesCodec):
     endian: Endian | None
 
     def __init__(self, *, endian: Endian | str | None = "little") -> None:
-        endian_parsed = None if endian is None else parse_enum(endian, Endian)
-        object.__setattr__(self, "endian", endian_parsed)
+        object.__setattr__(self, "endian", _parse_endian(endian))
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        _, configuration_parsed = parse_named_configuration(
-            data, "ChunkyCodec", require_configuration=False
-        )
-        configuration_parsed = configuration_parsed or {}
-        return cls(**configuration_parsed)  # type: ignore[arg-type]
+        return cls.from_json(data)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
-        if self.endian is not None:
-            return {
-                "name": "ChunkyCodec",
-                "configuration": {"endian": self.endian.value},
-            }
-        return {"name": "ChunkyCodec"}
+        return cast(dict[str, JSON], self.to_json(zarr_format=3))
+
+    @classmethod
+    def _from_json_v2(cls, data: CodecJSON) -> Self:
+        if isinstance(data, Mapping):
+            return cls(endian=data.get("endian"))
+        raise ValueError(f"Invalid JSON: {data}")
+
+    @classmethod
+    def _from_json_v3(cls, data: CodecJSON) -> Self:
+        if isinstance(data, str):
+            return cls()
+        if isinstance(data, Mapping):
+            config = data.get("configuration", {})
+            return cls(**config)
+        raise ValueError(f"Invalid JSON: {data}")
+
+    @classmethod
+    def from_json(cls, data: CodecJSON) -> Self:
+        if check_codecjson_v2(data):
+            return cls._from_json_v2(data)
+        return cls._from_json_v3(data)
+
+    @overload
+    def to_json(self, zarr_format: Literal[2]) -> CodecJSON_V2: ...
+    @overload
+    def to_json(self, zarr_format: Literal[3]) -> CodecJSON_V3: ...
+
+    def to_json(self, zarr_format: ZarrFormat) -> CodecJSON_V2 | CodecJSON_V3:
+        if zarr_format == 2:
+            if self.endian is not None:
+                return {"id": "ChunkyCodec", "endian": self.endian.value}  # type: ignore[return-value, typeddict-item]
+            return {"id": "ChunkyCodec"}  # type: ignore[return-value]
+        elif zarr_format == 3:
+            if self.endian is not None:
+                return {
+                    "name": "ChunkyCodec",
+                    "configuration": {"endian": self.endian.value},
+                }
+            return {"name": "ChunkyCodec"}
+        raise ValueError(
+            f"Unsupported Zarr format {zarr_format}. Expected 2 or 3."
+        )  # pragma: no cover
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
         if array_spec.dtype.item_size == 0:
@@ -123,14 +178,38 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        _, configuration_parsed = parse_named_configuration(
-            data, "HorizontalDeltaCodec", require_configuration=False
-        )
-        configuration_parsed = configuration_parsed or {}
-        return cls(**configuration_parsed)  # type: ignore[arg-type]
+        return cls.from_json(data)  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, JSON]:
-        return {"name": "HorizontalDeltaCodec"}
+        return cast(dict[str, JSON], self.to_json(zarr_format=3))
+
+    @classmethod
+    def _from_json_v2(cls, data: CodecJSON) -> Self:
+        return cls()
+
+    @classmethod
+    def _from_json_v3(cls, data: CodecJSON) -> Self:
+        return cls()
+
+    @classmethod
+    def from_json(cls, data: CodecJSON) -> Self:
+        if check_codecjson_v2(data):
+            return cls._from_json_v2(data)
+        return cls._from_json_v3(data)
+
+    @overload
+    def to_json(self, zarr_format: Literal[2]) -> CodecJSON_V2: ...
+    @overload
+    def to_json(self, zarr_format: Literal[3]) -> CodecJSON_V3: ...
+
+    def to_json(self, zarr_format: ZarrFormat) -> CodecJSON_V2 | CodecJSON_V3:
+        if zarr_format == 2:
+            return {"id": "HorizontalDeltaCodec"}  # type: ignore[return-value]
+        elif zarr_format == 3:
+            return {"name": "HorizontalDeltaCodec"}
+        raise ValueError(
+            f"Unsupported Zarr format {zarr_format}. Expected 2 or 3."
+        )  # pragma: no cover
 
     def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
         return self

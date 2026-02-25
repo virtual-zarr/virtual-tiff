@@ -114,6 +114,12 @@ docs = ["dev", "docs"]
 test-min-versions = ["dev", "test", "minimum-versions", "py311"] # test minimum versions with python 3.11
 test = ["dev", "test", "latest-versions", "py314"] # test latest versions with python 3.14
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Imagecodecs codecs are not in the Zarr version 3 specification and may not be supported by other zarr implementations.:UserWarning",
+    "ignore:Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.:rasterio.errors.NotGeoreferencedWarning",
+]
+
 [tool.coverage.run]
 source_pkgs = [""]
 branch = true
