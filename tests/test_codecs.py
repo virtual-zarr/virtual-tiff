@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import warnings
+from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pytest
@@ -21,6 +25,10 @@ from virtual_tiff.imagecodecs import (
     LZWCodec,
     ZstdCodec,
 )
+from virtual_tiff.parser import (
+    ZSTD_LEVEL_TAG,
+    _get_compression,
+)
 
 _DEFAULT_CONFIG = ArrayConfig(order="C", write_empty_chunks=True)
 
@@ -33,6 +41,35 @@ def _make_spec(shape, dtype, fill_value=0):
         config=_DEFAULT_CONFIG,
         prototype=default_buffer_prototype(),
     )
+
+
+@dataclass
+class FakeIFD:
+    """Stub for async_tiff.ImageFileDirectory."""
+
+    image_width: int = 256
+    image_height: int = 256
+    samples_per_pixel: int = 1
+    bits_per_sample: tuple[int, ...] = (8,)
+    sample_format: tuple[int, ...] = (1,)
+    compression: int = 1
+    predictor: int = 1
+    planar_configuration: int = 1
+    photometric_interpretation: Any = 1
+    tile_height: int | None = 256
+    tile_width: int | None = 256
+    tile_offsets: list[int] = field(default_factory=lambda: [1000])
+    tile_byte_counts: list[int] = field(default_factory=lambda: [65536])
+    strip_offsets: list[int] | None = None
+    strip_byte_counts: list[int] | None = None
+    rows_per_strip: int | None = None
+    geo_key_directory: Any = None
+    model_pixel_scale: list[float] | None = None
+    model_tiepoint: list[float] | None = None
+    gdal_metadata: str | None = None
+    gdal_nodata: str | None = None
+    jpeg_tables: bytes | None = None
+    other_tags: dict = field(default_factory=dict)
 
 
 # --- check_codecjson_v2 tests ---
@@ -429,3 +466,21 @@ def test_imagecodecs_floatpred_resolve_metadata_no_astype():
     spec = _make_spec((10,), Float32(), fill_value=0.0)
     result = codec.resolve_metadata(spec)
     assert result is spec
+
+
+class TestZstdLevelTag:
+    def test_zstd_level_tag_constant_value(self):
+        """The constant should be the numeric tag ID."""
+        assert ZSTD_LEVEL_TAG == "65564"
+        assert ZSTD_LEVEL_TAG != "ZSTD_LEVEL_TAG"
+
+    def test_zstd_level_read_from_ifd(self):
+        """_get_compression should use the ZSTD level from ifd.other_tags."""
+        ifd = FakeIFD(
+            compression=50000,
+            other_tags={ZSTD_LEVEL_TAG: 3},  # key "65564" -> level 3
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            codec = _get_compression(ifd, compression=50000)
+        assert codec.codec_config["level"] == 3
