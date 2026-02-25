@@ -52,7 +52,7 @@ def _get_compression(ifd: ImageFileDirectory, compression: int):
         )
     if codec.codec_name == "imagecodecs_zstd":
         # Based on https://github.com/OSGeo/gdal/blob/ecd914511ba70b4278cc233b97caca1afc9a6e05/frmts/gtiff/gtiff.h#L106-L112
-        return ZstdCodec(level=ifd.other_tags.get("ZSTD_LEVEL_TAG", DEFAULT_ZSTD_LEVEL))
+        return ZstdCodec(level=ifd.other_tags.get(ZSTD_LEVEL_TAG, DEFAULT_ZSTD_LEVEL))
     else:
         return codec()
 
