@@ -37,7 +37,7 @@ def test_load_dataset_against_rioxarray(filename):
         pytest.xfail(failures[filename])
     if filename in large_files:
         pytest.skip("Too slow")
-    filepath = f"{resolve_folder('tests/dvc/github/')}/{filename}"
+    filepath = f"{resolve_folder('tests/data/github/')}/{filename}"
     registry = ObjectStoreRegistry({"file://": LocalStore()})
     ds = loadable_dataset(f"file://{filepath}", registry=registry)
     assert isinstance(ds, xr.Dataset)
@@ -50,7 +50,7 @@ def test_load_dataset_against_rioxarray(filename):
 def test_virtual_dataset_from_tiff(filename):
     if filename in failures.keys():
         pytest.xfail(failures[filename])
-    filepath = f"{resolve_folder('tests/dvc/github')}/{filename}"
+    filepath = f"{resolve_folder('tests/data/github')}/{filename}"
     parser = VirtualTIFF(ifd=0)
     registry = ObjectStoreRegistry({"file://": LocalStore()})
     ms = parser(f"file://{filepath}", registry=registry)
@@ -60,7 +60,7 @@ def test_virtual_dataset_from_tiff(filename):
 
 
 def test_local_store_with_prefix():
-    data_dir = resolve_folder("tests/dvc/github").absolute()
+    data_dir = resolve_folder("tests/data/github").absolute()
     filepath = data_dir / "test_reference.tif"
     parser = VirtualTIFF(ifd=0)
     registry = ObjectStoreRegistry({"file://": LocalStore(data_dir)})

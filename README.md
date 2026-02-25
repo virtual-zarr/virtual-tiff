@@ -69,7 +69,7 @@ ds = open_virtual_dataset(
 ## Contributing
 
 1. Clone the repository: `git clone https://github.com/virtual-zarr/virtual-tiff.git`.
-2. Pull baseline image data from dvc remote `pixi run -e test download-test-images` WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
+2. Download test data from S3: `pixi run -e test download-test-images`. WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
 3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
 4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
 
