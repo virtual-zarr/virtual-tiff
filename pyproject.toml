@@ -93,6 +93,19 @@ xarray = "*"
 virtualizarr = "*"
 async_tiff = "*"
 
+# Define a feature set for rectilinear chunk grid extension
+[tool.pixi.feature.chunk-grid-ext.dependencies]
+rasterio = "*"
+
+[tool.pixi.feature.chunk-grid-ext.pypi-dependencies]
+zarr = { git = "https://github.com/jhamman/zarr-python.git", branch = "feature/rectilinear-chunk-grid" }
+virtualizarr = { git = "https://github.com/maxrjones/VirtualiZarr.git", branch = "feature/rectilinear-chunk-grid" }
+xarray = { git = "https://github.com/maxrjones/xarray.git", branch = "variable-chunking" }
+async_tiff = "*"
+rioxarray = "*"
+scipy = "*"
+
+
 # Define commands to run within the test environments
 [tool.pixi.feature.test.tasks]
 run-mypy = { cmd = "mypy src" }
@@ -101,6 +114,15 @@ run-tests-cov = { cmd = "pytest --verbose --cov=src --cov=term-missing" }
 run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
 run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
 download-test-images = { cmd = "dvc pull" }
+
+
+# Define commands to run within the test environments
+[tool.pixi.feature.chunk-grid-ext.tasks]
+run-mypy = { cmd = "mypy src" }
+run-tests = { cmd = "pytest --verbose --durations=10" }
+run-tests-cov = { cmd = "pytest --verbose --cov=src --cov=term-missing" }
+run-tests-xml-cov = { cmd = "pytest --verbose --cov=src --cov-report=xml" }
+run-tests-html-cov = { cmd = "pytest --verbose --cov=src --cov-report=html" }
 
 # Define commands to run within the docs environment
 [tool.pixi.feature.docs.tasks]
@@ -113,6 +135,7 @@ readthedocs = "rm -rf $READTHEDOCS_OUTPUT/html && cp -r site $READTHEDOCS_OUTPUT
 docs = ["dev", "docs"]
 test-min-versions = ["dev", "test", "minimum-versions", "py311"] # test minimum versions with python 3.11
 test = ["dev", "test", "latest-versions", "py314"] # test latest versions with python 3.14
+chunk-grid-ext = ["dev", "chunk-grid-ext", "py314"] # test with rectilinear chunk grid extension
 
 [tool.coverage.run]
 source_pkgs = [""]

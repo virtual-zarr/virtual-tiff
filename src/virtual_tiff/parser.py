@@ -19,11 +19,11 @@ from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 from zarr.dtype import parse_data_type
 
-from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
+from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec, TruncateCodec
 from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
-    check_no_partial_strips,
+    _is_nested_sequence,
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
@@ -59,7 +59,7 @@ def _get_compression(ifd: ImageFileDirectory, compression: int):
 
 
 def _get_dtype(
-    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]
+    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...], endian: str
 ) -> np.dtype:
     if not all(x == sample_format[0] for x in sample_format):
         raise ValueError(
@@ -75,7 +75,11 @@ def _get_dtype(
             raise NotImplementedError(
                 "Requires upstream fix; see https://github.com/virtual-zarr/virtual-tiff/issues/42."
             )
-        return np.dtype(dtype)
+        result = np.dtype(dtype)
+        if result.itemsize > 1:
+            byteorder: Literal[">", "<"] = ">" if endian == "big" else "<"
+            result = result.newbyteorder(byteorder)
+        return result
     except KeyError as e:
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
@@ -93,13 +97,16 @@ def _get_chunks_from_tiles(
 
 def _get_chunks_from_strips(
     ifd: ImageFileDirectory, image_height: int
-) -> tuple[tuple[int, ...], list[int], list[int]]:
-    rows_per_strip = ifd.rows_per_strip
+) -> tuple[tuple[int, ...] | list[list[int]], list[int], list[int]]:
+    rows_per_strip: int = ifd.rows_per_strip
+    chunks: tuple[int, ...] | list[list[int]]
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
+    elif (remainder := image_height % rows_per_strip) > 0:
+        quotient = image_height // rows_per_strip
+        chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
     else:
         chunks = (rows_per_strip, ifd.image_width)
-    check_no_partial_strips(image_height=image_height, rows_per_strip=chunks[0])
     offsets = ifd.strip_offsets
     byte_counts = ifd.strip_byte_counts
     return chunks, offsets, byte_counts
@@ -125,6 +132,8 @@ def _get_codecs(
         codecs.append(ChunkyCodec(endian=str(endian)))
     else:
         codecs.append(BytesCodec(endian=str(endian)))
+    if _is_nested_sequence(chunks):
+        codecs.append(TruncateCodec())
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     return codecs
@@ -156,16 +165,30 @@ def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
 
 
 def _add_dim_for_samples_per_pixel(
-    ifd: ImageFileDirectory, shape: tuple[int, ...], chunks: tuple[int, ...]
-) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    ifd: ImageFileDirectory,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...] | list[list[int]],
+) -> tuple[tuple[int, ...], tuple[int, ...] | list[list[int]]]:
     sample_dim_length = int(ifd.samples_per_pixel)
     shape = (sample_dim_length,) + shape
     if ifd.planar_configuration == 2:
         # For PlanarConfiguration = 2, the offsets for each component plane are stored
         # separately. Each plane has its own set of offsets, ordered by component.
-        chunks = (1,) + chunks
+        if _is_nested_sequence(chunks):
+            assert isinstance(chunks, list)
+            chunks = [[1] * sample_dim_length] + chunks
+        else:
+            assert isinstance(chunks, tuple)
+            chunks = (1,) + chunks
     else:
-        chunks = (sample_dim_length,) + chunks
+        # Check if rectilinear or regular chunk grid
+        if _is_nested_sequence(chunks):
+            assert isinstance(chunks, list)
+            chunks = [[sample_dim_length]] + chunks
+        else:
+            assert isinstance(chunks, tuple)
+            chunks = (sample_dim_length,) + chunks
+
     return shape, chunks
 
 
@@ -177,7 +200,10 @@ def _construct_chunk_manifest(
     offsets: Iterable[int],
     byte_counts: Iterable[int],
 ) -> ChunkManifest:
-    chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    chunk_manifest_shape = tuple(
+        math.ceil(a / b) if isinstance(b, int) else len(b)
+        for a, b in zip(shape, chunks)
+    )
     offsets = np.array(offsets, dtype=np.uint64)
     byte_counts = np.array(byte_counts, dtype=np.uint64)
 
@@ -206,9 +232,12 @@ def _construct_manifest_array(
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
     shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
     dtype = _get_dtype(
-        sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
+        sample_format=ifd.sample_format,
+        bits_per_sample=ifd.bits_per_sample,
+        endian=endian,
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
+    chunks: tuple[int, ...] | list[list[int]]
     if ifd.tile_height:
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
@@ -238,13 +267,21 @@ def _construct_manifest_array(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
     zdtype = parse_data_type(dtype, zarr_format=3)
+    if isinstance(chunks[0], int):
+        chunk_grid = {
+            "name": "regular",
+            "configuration": {"chunk_shape": chunks},
+        }
+    else:
+        chunk_grid = {
+            "name": "rectilinear",
+            "configuration": {"chunk_shapes": chunks, "kind": "inline"},
+        }
+
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=zdtype,
-        chunk_grid={
-            "name": "regular",
-            "configuration": {"chunk_shape": chunks},
-        },
+        chunk_grid=chunk_grid,
         chunk_key_encoding={"name": "default"},
         fill_value=zdtype.default_scalar(),
         codecs=codecs,

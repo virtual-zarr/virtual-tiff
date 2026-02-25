@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import numpy as np
-from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec
+from zarr.abc.codec import ArrayArrayCodec, ArrayBytesCodec, BytesBytesCodec
 from zarr.codecs.bytes import Endian
 from zarr.core.buffer import Buffer, NDArrayLike, NDBuffer
 from zarr.core.common import JSON, parse_enum, parse_named_configuration
@@ -155,5 +155,60 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         return input_byte_length
 
 
+@dataclass(frozen=True)
+class TruncateCodec(BytesBytesCodec):
+    """Bytes-to-bytes codec that truncates oversized buffers to the expected chunk size.
+
+    Archival formats (TIFF strips, HDF5 chunks, etc.) may pad edge chunks to
+    full size on disk. When read through virtual Zarr stores, the codec pipeline
+    receives more bytes than the logical chunk shape expects. This codec trims
+    the buffer to the expected size before downstream codecs process it.
+    """
+
+    is_fixed_size = True
+
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JSON]) -> Self:
+        _, configuration_parsed = parse_named_configuration(
+            data, "TruncateCodec", require_configuration=False
+        )
+        configuration_parsed = configuration_parsed or {}
+        return cls(**configuration_parsed)  # type: ignore[arg-type]
+
+    def to_dict(self) -> dict[str, JSON]:
+        return {"name": "TruncateCodec"}
+
+    def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
+        return self
+
+    async def _decode_single(
+        self,
+        chunk_bytes: Buffer,
+        chunk_spec: ArraySpec,
+    ) -> Buffer:
+        expected_size = int(np.prod(chunk_spec.shape)) * chunk_spec.dtype.item_size
+        if len(chunk_bytes) > expected_size:
+            return chunk_spec.prototype.buffer.from_array_like(
+                chunk_bytes.as_array_like()[:expected_size]
+            )
+        return chunk_bytes
+
+    async def _encode_single(
+        self,
+        chunk_bytes: Buffer,
+        _chunk_spec: ArraySpec,
+    ) -> Buffer:
+        return chunk_bytes
+
+    def compute_encoded_size(
+        self, input_byte_length: int, _chunk_spec: ArraySpec
+    ) -> int:
+        return input_byte_length
+
+
 register_codec("ChunkyCodec", ChunkyCodec)
 register_codec("HorizontalDeltaCodec", HorizontalDeltaCodec)
+register_codec("TruncateCodec", TruncateCodec)

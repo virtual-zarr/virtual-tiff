@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from async_tiff.store import AzureStore, GCSStore, HTTPStore, LocalStore, S3Store
 from obstore.store import ObjectStore
+from zarr.core.chunk_grids import (
+    ChunkGrid,
+)
 
 if TYPE_CHECKING:
     from async_tiff.store import ObjectStore as AsyncTiffObjectStore
@@ -54,3 +57,32 @@ def check_no_partial_strips(image_height: int, rows_per_strip: int):
             f"{image_height} which isn't evenly divisible by its rows per strip {rows_per_strip}. "
             "See https://github.com/developmentseed/virtual-tiff/issues/24 for more details."
         )
+
+
+def _is_nested_sequence(chunks: Any) -> bool:
+    """
+    Check if chunks is a nested sequence (tuple of tuples/lists).
+
+    Returns True for inputs like [[10, 20], [5, 5]] or [(10, 20), (5, 5)].
+    Returns False for flat sequences like (10, 10) or [10, 10].
+
+    Vendored from https://github.com/zarr-developers/zarr-python/pull/3534
+    """
+    # Not a sequence if it's a string, int, tuple of basic types, or ChunkGrid
+    if isinstance(chunks, str | int | ChunkGrid):
+        return False
+
+    # Check if it's iterable
+    if not hasattr(chunks, "__iter__"):
+        return False
+
+    # Check if first element is a sequence (but not string/bytes/int)
+    try:
+        first_elem = next(iter(chunks), None)
+        if first_elem is None:
+            return False
+        return hasattr(first_elem, "__iter__") and not isinstance(
+            first_elem, str | bytes | int
+        )
+    except (TypeError, StopIteration):
+        return False
