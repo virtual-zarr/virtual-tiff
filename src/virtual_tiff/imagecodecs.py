@@ -48,16 +48,16 @@ class _ImageCodecsCodec:
             raise ValueError(
                 "The codec name needs to be supplied through the `codec_name` attribute."
             )  # pragma: no cover
-        unprefixed_codec_name = _expect_name_prefix(self.codec_name)
+        _expect_name_prefix(self.codec_name)
 
         if "id" not in codec_config:
             codec_config = {
-                "id": unprefixed_codec_name,  # type: ignore
+                "id": self.codec_name,  # type: ignore
                 **codec_config,
             }
-        elif codec_config["id"] != unprefixed_codec_name:
+        elif codec_config["id"] != self.codec_name:
             raise ValueError(
-                f"Codec id does not match {unprefixed_codec_name}. Got: {codec_config['id']}."
+                f"Codec id does not match {self.codec_name}. Got: {codec_config['id']}."
             )  # pragma: no cover
 
         object.__setattr__(self, "codec_config", codec_config)
