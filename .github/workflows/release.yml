@@ -1,4 +1,4 @@
-name: Wheels
+name: Release
 
 on: [push, pull_request]
 
@@ -18,12 +18,12 @@ jobs:
       - uses: actions/setup-python@v6.2.0
         name: Install Python
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install PyBuild
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install hatch "virtualenv>=20.29"
       - name: Build wheel and sdist
         run: hatch build
       - uses: actions/upload-artifact@v4
@@ -48,14 +48,15 @@ jobs:
   upload_pypi:
     needs: [build_artifacts]
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # IMPORTANT: this permission is mandatory for Trusted Publishing
+      id-token: write
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: releases
           path: dist
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
-          # To test: repository_url: https://test.pypi.org/legacy/
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.12.4
