@@ -17,7 +17,6 @@ from warnings import warn
 import numpy as np
 from zarr.abc.codec import (
     ArrayArrayCodec,
-    ArrayBytesCodec,
     BytesBytesCodec,
     CodecJSON,
     CodecJSON_V2,
@@ -142,22 +141,6 @@ class _ImageCodecsArrayArrayCodec(_ImageCodecsCodec, ArrayArrayCodec):
         chunk_ndarray = chunk_array.as_ndarray_like()
         out = await asyncio.to_thread(self._codec.encode, chunk_ndarray)
         return chunk_spec.prototype.nd_buffer.from_ndarray_like(out)
-
-    def compute_encoded_size(
-        self, input_byte_length: int, chunk_spec: ArraySpec
-    ) -> int:
-        raise NotImplementedError
-
-
-class _ImageCodecsArrayBytesCodec(_ImageCodecsCodec, ArrayBytesCodec):
-    async def _decode_single(
-        self, chunk_buffer: Buffer, chunk_spec: ArraySpec
-    ) -> NDBuffer:
-        chunk_bytes = chunk_buffer.to_bytes()
-        out = await asyncio.to_thread(self._codec.decode, chunk_bytes)
-        return chunk_spec.prototype.nd_buffer.from_ndarray_like(
-            out.reshape(chunk_spec.shape)
-        )
 
     def compute_encoded_size(
         self, input_byte_length: int, chunk_spec: ArraySpec
