@@ -9874,8 +9874,8 @@ packages:
   requires_python: '>=3.6'
 - pypi: ./
   name: virtual-tiff
-  version: 0.2.2.dev12+g9d9b47fdb.d20260212
-  sha256: 3856c231f61aa517de9cb27a702bae9b43fac3514dcf1d192ae9d8c705ecb16a
+  version: 0.2.2.dev11+g49b851b3f.d20260225
+  sha256: 84f29f6df980bebe9b0977c265974d5faf72ca82acfa3fbbb95b1ce5b8341ca8
   requires_dist:
   - async-tiff>=0.4.0
   - imagecodecs
