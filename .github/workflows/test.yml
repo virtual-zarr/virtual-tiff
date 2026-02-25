@@ -39,12 +39,15 @@ jobs:
           pixi install --environment ${{ matrix.environment }}
           pixi list --environment ${{ matrix.environment }}
 
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: tests/data
+          key: test-data-v1
+
       - name: Download test images
         run: |
-          pixi run -e ${{ matrix.environment }} "dvc remote modify origin url https://${DAGSHUB_TOKEN}@dagshub.com/virtual-zarr/virtual-tiff.dvc --local"
-          pixi run -e ${{ matrix.environment }} "dvc pull --no-run-cache"
-        env:
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          pixi run -e ${{ matrix.environment }} download-test-images
 
       - name: Running Tests
         run: |
