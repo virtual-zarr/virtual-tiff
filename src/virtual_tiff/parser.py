@@ -218,9 +218,12 @@ def _construct_manifest_array(
         raise NotImplementedError(
             "TIFFs without byte counts and offsets aren't supported"
         )
-    if ifd.photometric_interpretation in [6, 8]:
+    if ifd.photometric_interpretation in [3, 6, 8]:
+        name = getattr(
+            ifd.photometric_interpretation, "_name_", ifd.photometric_interpretation
+        )
         raise NotImplementedError(
-            f"{ifd.photometric_interpretation._name_} PhotometricInterpretation is not yet supported."
+            f"{name} PhotometricInterpretation is not yet supported."
         )
     if ifd.samples_per_pixel > 1:
         shape, chunks = _add_dim_for_samples_per_pixel(
