@@ -10,7 +10,7 @@ from zarr.codecs.bytes import Endian
 from zarr.core.array_spec import ArrayConfig, ArraySpec
 from zarr.core.buffer import default_buffer_prototype
 from zarr.core.buffer.cpu import NDBuffer
-from zarr.core.dtype import Float32, UInt8, UInt16
+from zarr.core.dtype import Float32, Float64, UInt8, UInt16
 
 from virtual_tiff.codecs import (
     ChunkyCodec,
@@ -484,3 +484,91 @@ class TestZstdLevelTag:
             warnings.simplefilter("ignore")
             codec = _get_compression(ifd, compression=50000)
         assert codec.codec_config["level"] == 3
+
+
+class TestHorizontalDeltaFloat:
+    """TIFF Predictor=2 operates on raw bit patterns as unsigned integers,
+    regardless of the sample data type. The codec correctly handles this
+    by performing cumsum on a uint view of the data."""
+
+    @pytest.mark.asyncio
+    async def test_float32_bit_level_diff(self):
+        """HorizontalDeltaCodec correctly decodes float32 data with
+        bit-level (Predictor=2) differencing."""
+        codec = HorizontalDeltaCodec()
+
+        # Original float32 values
+        original = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)
+
+        # TIFF Predictor=2 encodes by subtracting uint32 bit patterns:
+        #   encoded[i] = uint32(raw[i]) - uint32(raw[i-1])
+        raw_bits = original.view(np.uint32)
+        encoded_bits = np.empty_like(raw_bits)
+        encoded_bits[0, 0] = raw_bits[0, 0]
+        encoded_bits[0, 1] = raw_bits[0, 1] - raw_bits[0, 0]
+        encoded_bits[0, 2] = raw_bits[0, 2] - raw_bits[0, 1]
+
+        # After BytesCodec, the data arrives as float32 (the array dtype)
+        encoded_as_float = encoded_bits.view(np.float32)
+
+        nd_buf = NDBuffer.from_ndarray_like(encoded_as_float)
+        spec = _make_spec((1, 3), Float32(), fill_value=0.0)
+        result = await codec._decode_single(nd_buf, spec)
+
+        # Decoding performs cumsum on the uint32 bit patterns,
+        # then views back as float32
+        np.testing.assert_array_equal(result.as_ndarray_like(), original)
+
+    @pytest.mark.asyncio
+    async def test_float64_bit_level_diff(self):
+        """Same bit-level differencing works for float64 data."""
+        codec = HorizontalDeltaCodec()
+
+        original = np.array([[1.0, 2.0, 3.0]], dtype=np.float64)
+        raw_bits = original.view(np.uint64)
+        encoded_bits = np.empty_like(raw_bits)
+        encoded_bits[0, 0] = raw_bits[0, 0]
+        encoded_bits[0, 1] = raw_bits[0, 1] - raw_bits[0, 0]
+        encoded_bits[0, 2] = raw_bits[0, 2] - raw_bits[0, 1]
+        encoded_as_float = encoded_bits.view(np.float64)
+
+        nd_buf = NDBuffer.from_ndarray_like(encoded_as_float)
+        spec = _make_spec((1, 3), Float64(), fill_value=0.0)
+        result = await codec._decode_single(nd_buf, spec)
+        np.testing.assert_array_equal(result.as_ndarray_like(), original)
+
+    @pytest.mark.asyncio
+    async def test_uint16_wrapping(self):
+        """Cumsum correctly wraps within uint16 range, matching libtiff's
+        native-width arithmetic for Predictor=2."""
+        codec = HorizontalDeltaCodec()
+
+        # Original: [200, 10] — the diff wraps in uint16 arithmetic
+        original = np.array([[200, 10]], dtype=np.uint16)
+        encoded = np.empty_like(original)
+        encoded[0, 0] = original[0, 0]
+        # Compute wrapping diff the same way TIFF/libtiff does: uint16 subtraction
+        encoded[0, 1] = original[0, 1] - original[0, 0]
+        # 10 - 200 wraps to 65346 in uint16 numpy arithmetic
+
+        nd_buf = NDBuffer.from_ndarray_like(encoded)
+        spec = _make_spec((1, 2), UInt16())
+        result = await codec._decode_single(nd_buf, spec)
+
+        # Integer wrapping should give back the original values
+        np.testing.assert_array_equal(result.as_ndarray_like(), original)
+
+    @pytest.mark.asyncio
+    async def test_int_cumsum_is_correct(self):
+        """Integer predictor=2 decoding via cumsum works for normal values."""
+        codec = HorizontalDeltaCodec()
+
+        original = np.array([[10, 20, 35]], dtype=np.uint16)
+        encoded = np.array(
+            [[10, 10, 15]], dtype=np.uint16
+        )  # diffs: 10, 20-10=10, 35-20=15
+
+        nd_buf = NDBuffer.from_ndarray_like(encoded)
+        spec = _make_spec((1, 3), UInt16())
+        result = await codec._decode_single(nd_buf, spec)
+        np.testing.assert_array_equal(result.as_ndarray_like(), original)
