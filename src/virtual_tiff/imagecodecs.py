@@ -48,16 +48,16 @@ class _ImageCodecsCodec:
             raise ValueError(
                 "The codec name needs to be supplied through the `codec_name` attribute."
             )  # pragma: no cover
-        unprefixed_codec_name = _expect_name_prefix(self.codec_name)
+        _expect_name_prefix(self.codec_name)
 
         if "id" not in codec_config:
             codec_config = {
-                "id": unprefixed_codec_name,  # type: ignore
+                "id": self.codec_name,  # type: ignore
                 **codec_config,
             }
-        elif codec_config["id"] != unprefixed_codec_name:
+        elif codec_config["id"] != self.codec_name:
             raise ValueError(
-                f"Codec id does not match {unprefixed_codec_name}. Got: {codec_config['id']}."
+                f"Codec id does not match {self.codec_name}. Got: {codec_config['id']}."
             )  # pragma: no cover
 
         object.__setattr__(self, "codec_config", codec_config)
@@ -69,20 +69,21 @@ class _ImageCodecsCodec:
 
     @cached_property
     def _codec(self) -> numcodecs.abc.Codec:
-        codec_config = self.codec_config["configuration"]
-        codec_config["id"] = self.codec_config["name"]
-        return numcodecs.get_codec(codec_config)
+        return numcodecs.get_codec(dict(self.codec_config))
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        return cls(**data)
+        configuration = data.get("configuration", {})
+        return cls(**configuration)
 
     def to_dict(self) -> JSON:
-        codec_config = self.codec_config.copy()
-        return {
-            "name": self.codec_name,
-            "configuration": codec_config,
-        }
+        codec_config = {k: v for k, v in self.codec_config.items() if k != "id"}
+        if codec_config:
+            return {
+                "name": self.codec_name,
+                "configuration": codec_config,
+            }
+        return {"name": self.codec_name}
 
     def compute_encoded_size(
         self, input_byte_length: int, chunk_spec: ArraySpec
