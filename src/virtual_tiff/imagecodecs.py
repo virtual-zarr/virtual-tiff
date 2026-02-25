@@ -69,20 +69,21 @@ class _ImageCodecsCodec:
 
     @cached_property
     def _codec(self) -> numcodecs.abc.Codec:
-        codec_config = self.codec_config["configuration"]
-        codec_config["id"] = self.codec_config["name"]
-        return numcodecs.get_codec(codec_config)
+        return numcodecs.get_codec(dict(self.codec_config))
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
-        return cls(**data)
+        configuration = data.get("configuration", {})
+        return cls(**configuration)
 
     def to_dict(self) -> JSON:
-        codec_config = self.codec_config.copy()
-        return {
-            "name": self.codec_name,
-            "configuration": codec_config,
-        }
+        codec_config = {k: v for k, v in self.codec_config.items() if k != "id"}
+        if codec_config:
+            return {
+                "name": self.codec_name,
+                "configuration": codec_config,
+            }
+        return {"name": self.codec_name}
 
     def compute_encoded_size(
         self, input_byte_length: int, chunk_spec: ArraySpec
