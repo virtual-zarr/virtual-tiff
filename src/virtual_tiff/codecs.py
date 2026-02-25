@@ -219,7 +219,21 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         chunk_array: NDBuffer,
         chunk_spec: ArraySpec,
     ) -> NDBuffer:
-        return chunk_array.__class__(chunk_array._data.cumsum(axis=-1))
+        # TIFF Predictor=2 (horizontal differencing) encodes by subtracting
+        # consecutive samples as raw unsigned integers, regardless of the
+        # actual data type. Decoding reverses this via cumulative sum.
+        #
+        # Two subtleties require operating on an unsigned integer view:
+        # 1. Float data: the differences are of the uint bit patterns, not
+        #    float values (e.g. float32 diffs are uint32 subtractions).
+        # 2. Integer overflow: numpy.cumsum upcasts small unsigned types
+        #    (e.g. uint16 → uint64), losing modular wrapping arithmetic.
+        #    Passing dtype= forces the accumulation in the original width.
+        dtype = chunk_array._data.dtype
+        uint_dtype = np.dtype(f"u{dtype.itemsize}")
+        result = chunk_array._data.view(uint_dtype)
+        result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+        return chunk_array.__class__(result)
 
     async def _encode_single(
         self,

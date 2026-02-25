@@ -218,7 +218,6 @@ xfail_int64 = [
     "int64.tif",
     "rgbsmall_uint64_LZW_predictor_2.tif",
 ]
-xfail_pred2 = ["float32_LZW_predictor_2.tif"]
 # Generated with the assistance of Claude
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
@@ -298,7 +297,6 @@ skip = (
     slow_tests
     + corrupted
     + xfail_byte_range
-    + xfail_pred2
     + xfail_panic
     + xfail_gdal_cannot_read
     + xfail_subifd
