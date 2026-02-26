@@ -132,7 +132,7 @@ def _get_codecs(
 def _parse_geo_key_directory(geo_key_directory: GeoKeyDirectory) -> dict[str, Any]:
     attrs = {}
     for key in GEO_KEYS:
-        if value := getattr(geo_key_directory, key):
+        if value := getattr(geo_key_directory, key) is not None:
             attrs[key] = value
     return attrs
 
