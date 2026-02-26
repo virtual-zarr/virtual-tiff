@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from obstore.store import LocalStore
 from packaging.version import Version
@@ -8,8 +10,7 @@ from virtualizarr.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
 
 from .conftest import (
-    gdal_autotest_examples,
-    gdal_gcore_examples,
+    gdal_examples,
     resolve_folder,
     rioxarray_comparison,
 )
@@ -26,12 +27,13 @@ def match_error(filepath, error, match):
         )
 
 
-def run_gdal_test(filename, filepath):
+def run_gdal_test(rel_path):
+    filename = Path(rel_path).name
     if filename in skip:
         pytest.xfail("Known failure")
     if filename == "float16.tif" and Version(_rioxarray_version) < Version("0.20.0"):
         pytest.xfail("rioxarray<0.20.0 does not support float16")
-    filepath = f"{resolve_folder(filepath)}/{filename}"
+    filepath = f"{resolve_folder('tests/data/gdal')}/{rel_path}"
     if filename in unknown_compressor:
         match_error(
             filepath,
@@ -78,14 +80,9 @@ def run_gdal_test(filename, filepath):
         rioxarray_comparison(f"file://{filepath}")
 
 
-@pytest.mark.parametrize("filename", gdal_autotest_examples())
-def test_against_rioxarray_gdal_autotest(filename):
-    run_gdal_test(filename, "tests/dvc/gdal_autotest")
-
-
-@pytest.mark.parametrize("filename", gdal_gcore_examples())
-def test_against_rioxarray_gdal_gcore(filename):
-    run_gdal_test(filename, "tests/dvc/gdal_gcore")
+@pytest.mark.parametrize("rel_path", gdal_examples())
+def test_against_rioxarray_gdal(rel_path):
+    run_gdal_test(rel_path)
 
 
 corrupted = [
@@ -179,6 +176,7 @@ partial_chunks = [
     "geog_arc_second.tif",
     "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
     "quad-lzw-old-style.tif",
+    "rgbsmall_WEBP_RGBA_alpha_omitted.tif",
 ]
 byte_counts = [
     "VH.tif",
@@ -201,6 +199,7 @@ byte_counts = [
     "rgbsmall_cmyk.tif",
     "sparse_tiled_separate.tif",
     "toomanyblocks.tif",
+    "huge_raster_with_ovr_huge_block.tif",
 ]
 dtype = [
     "cint32.tif",
@@ -219,7 +218,6 @@ xfail_int64 = [
     "int64.tif",
     "rgbsmall_uint64_LZW_predictor_2.tif",
 ]
-xfail_pred2 = ["float32_LZW_predictor_2.tif"]
 # Generated with the assistance of Claude
 xfail_byte_range = [
     "strip_larger_than_2GB_header.tif",
@@ -252,6 +250,7 @@ xfail_panic = [
     "minimum_tiff_tags_no_warning.tif",
     "byte_user_defined_geokeys.tif",
     "huge-number-strips.tif",
+    "ossfuzz_470691578.tif",
 ]
 
 xfail_gdal_cannot_read = [
@@ -292,12 +291,12 @@ xfail_reshape = [
     "oddsize_1bit2b.tif",
     "contig_tiled.tif",
     "separate_tiled.tif",
+    "stripbytecounts_count_not_same_as_stripoffsets_count.tif",
 ]
 skip = (
     slow_tests
     + corrupted
     + xfail_byte_range
-    + xfail_pred2
     + xfail_panic
     + xfail_gdal_cannot_read
     + xfail_subifd

@@ -69,9 +69,14 @@ ds = open_virtual_dataset(
 ## Contributing
 
 1. Clone the repository: `git clone https://github.com/virtual-zarr/virtual-tiff.git`.
-2. Pull baseline image data from dvc remote `pixi run -e test download-test-images` WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
+2. Download test data from S3: `pixi run -e test download-test-images`. WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
 3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
 4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
+
+Test data is populated from three upstream sources via sync scripts (run these before `upload_test_data.py` to refresh S3):
+- `uv run scripts/sync_gdal_tiffs.py` — GDAL autotest TIFFs
+- `uv run scripts/sync_external_tiffs.py` — external TIFFs from various URLs
+- `uv run scripts/sync_geotiff_test_data.py` — synthetic and real-world fixtures from [geotiff-test-data](https://github.com/developmentseed/geotiff-test-data)
 
 ## License
 

@@ -28,9 +28,9 @@ jobs:
         environment: [test-min-versions, test]
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.12
+      - uses: prefix-dev/setup-pixi@v0.9.4
         with:
-          pixi-version: v0.63.2
+          pixi-version: v0.64.0
           cache: true
           environments: ${{ matrix.environment }}
 
@@ -39,12 +39,22 @@ jobs:
           pixi install --environment ${{ matrix.environment }}
           pixi list --environment ${{ matrix.environment }}
 
+      - name: Restore test data cache
+        uses: actions/cache/restore@v4
+        with:
+          path: tests/data
+          key: test-data-${{ hashFiles('scripts/github_sources.json') }}
+
       - name: Download test images
         run: |
-          pixi run -e ${{ matrix.environment }} "dvc remote modify origin url https://${DAGSHUB_TOKEN}@dagshub.com/virtual-zarr/virtual-tiff.dvc --local"
-          pixi run -e ${{ matrix.environment }} "dvc pull --no-run-cache"
-        env:
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          pixi run -e ${{ matrix.environment }} download-test-images
+
+      - name: Save test data cache
+        if: matrix.environment == 'test'
+        uses: actions/cache/save@v4
+        with:
+          path: tests/data
+          key: test-data-${{ hashFiles('scripts/github_sources.json') }}
 
       - name: Running Tests
         run: |

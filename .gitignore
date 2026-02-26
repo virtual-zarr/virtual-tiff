@@ -66,6 +66,7 @@ target/
 .vscode/
 
 # test data
+tests/data/
 #*.zarr
 #*.zip
 #example*
@@ -82,3 +83,5 @@ tests/.hypothesis
 zarr/version.py
 
 site/
+
+uv.lock

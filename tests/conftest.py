@@ -52,18 +52,22 @@ def list_tiffs(folder):
 
 
 def github_examples():
-    data_dir = resolve_folder("tests/dvc/github")
+    data_dir = resolve_folder("tests/data/github")
     return list_tiffs(data_dir)
 
 
-def gdal_autotest_examples():
-    data_dir = resolve_folder("tests/dvc/gdal_autotest")
-    return list_tiffs(data_dir)
+def gdal_examples():
+    """Recursively find all .tif files under tests/data/gdal/, returning paths relative to gdal/."""
+    data_dir = resolve_folder("tests/data/gdal")
+    tif_files = sorted(data_dir.rglob("*.tif"))
+    return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
-def gdal_gcore_examples():
-    data_dir = resolve_folder("tests/dvc/gdal_gcore")
-    return list_tiffs(data_dir)
+def geotiff_test_data_examples():
+    """Recursively find all .tif files under tests/data/geotiff-test-data/, returning paths relative to geotiff-test-data/."""
+    data_dir = resolve_folder("tests/data/geotiff-test-data")
+    tif_files = sorted(data_dir.rglob("*.tif"))
+    return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
 def loadable_dataset(filepath, registry):
