@@ -43,6 +43,28 @@ ds = xr.open_zarr(manifest_store, zarr_format=3, consolidated=False)
 ds.load()
 ```
 
+It also works with Google Cloud Storage:
+
+```python
+import obstore
+from virtualizarr.registry import ObjectStoreRegistry
+from virtual_tiff import VirtualTIFF
+import xarray as xr
+
+# Configuration
+bucket_url = "gs://gcp-public-data-landsat/"
+file_url = f"{bucket_url}LC08/01/044/034/LC08_L1TP_044034_20131228_20170307_01_T1/LC08_L1TP_044034_20131228_20170307_01_T1_B3.TIF"
+
+# Setup and open dataset
+gcs_store = obstore.store.from_url(bucket_url, skip_signature=True)
+registry = ObjectStoreRegistry({bucket_url: gcs_store})
+
+parser = VirtualTIFF(ifd=0)
+manifest_store = parser(url=file_url, registry=registry)
+ds = xr.open_zarr(manifest_store, zarr_format=3, consolidated=False)
+ds.load()
+```
+
 or create a virtual dataset:
 
 ```python
