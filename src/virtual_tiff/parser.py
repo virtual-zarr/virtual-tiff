@@ -14,6 +14,7 @@ from virtualizarr.manifests import (
 from virtualizarr.registry import ObjectStoreRegistry
 from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
+from zarr.core.chunk_grids import ChunkGrid
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 from zarr.dtype import parse_data_type
@@ -23,9 +24,12 @@ from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
     _is_nested_sequence,
+    check_no_partial_strips,
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
+
+has_rectilinear_chunk_grid_support = hasattr(ChunkGrid, "is_regular")
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
@@ -102,6 +106,8 @@ def _get_chunks_from_strips(
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
+        if not has_rectilinear_chunk_grid_support:
+            check_no_partial_strips(image_height, rows_per_strip)
         quotient = image_height // rows_per_strip
         chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
     else:
@@ -279,7 +285,7 @@ def _construct_manifest_array(
     else:
         chunk_grid = {
             "name": "rectilinear",
-            "configuration": {"chunk_shapes": chunks, "kind": "inline"},
+            "configuration": {"chunk_shapes": chunks},
         }
 
     metadata = ArrayV3Metadata(

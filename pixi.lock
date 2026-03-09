@@ -196,13 +196,13 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/dd/1a/5d9a402b39ec892d856bbdd9db502ff73ce28cdf4aff72eb1ce1d6843506/universal_pathlib-0.3.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/59/7d02447a55b2e55755011a647479041bc92a82e143f96a8195cb33bd0a1c/virtualenv-21.2.0-py3-none-any.whl
-      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=feature%2Frectilinear-chunk-grid#bb7dc7e1fa0b5ad0e4fb867654071ce3c269d698
+      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=poc%2Funified-chunk-grid#3fe140ba396d5b41617161965e4789e0f1550ed3
       - pypi: https://files.pythonhosted.org/packages/b5/e8/dbf020b4d98251a9860752a094d09a65e1b436ad181faf929983f697048f/watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/53/37/02af1867f5b1441aaeda9c82deed061b7cd1372572ddcd717f6df90b5e93/wrapt-2.1.2-cp314-cp314-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
-      - pypi: git+https://github.com/maxrjones/xarray.git?branch=variable-chunking#0231552919ffd3877d36052c952dec6c519f10db
+      - pypi: git+https://github.com/maxrjones/xarray.git?branch=poc%2Funified-zarr-chunk-grid#d2b10d2a76dfcf8f53e05138bb8a829347665c94
       - pypi: https://files.pythonhosted.org/packages/42/2b/fef67d616931055bf3d6764885990a3ac647d68734a2d6a9e1d13de437a2/yarl-1.23.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: git+https://github.com/jhamman/zarr-python.git?branch=feature%2Frectilinear-chunk-grid#f5ac0616cfa323017089f607ed9879100d1e4631
+      - pypi: git+https://github.com/maxrjones/zarr-python.git?branch=poc%2Funified-chunk-grid#f1a1bc3f419aab6104bf290a8e3bc282807084c7
       - pypi: ./
       osx-64:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/_openmp_mutex-4.5-7_kmp_llvm.conda
@@ -386,13 +386,13 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/dd/1a/5d9a402b39ec892d856bbdd9db502ff73ce28cdf4aff72eb1ce1d6843506/universal_pathlib-0.3.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/59/7d02447a55b2e55755011a647479041bc92a82e143f96a8195cb33bd0a1c/virtualenv-21.2.0-py3-none-any.whl
-      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=feature%2Frectilinear-chunk-grid#bb7dc7e1fa0b5ad0e4fb867654071ce3c269d698
+      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=poc%2Funified-chunk-grid#3fe140ba396d5b41617161965e4789e0f1550ed3
       - pypi: https://files.pythonhosted.org/packages/db/7d/7f3d619e951c88ed75c6037b246ddcf2d322812ee8ea189be89511721d54/watchdog-6.0.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/25/e7ea0b417db02bb796182a5316398a75792cd9a22528783d868755e1f669/wrapt-2.1.2-cp314-cp314-macosx_10_15_x86_64.whl
-      - pypi: git+https://github.com/maxrjones/xarray.git?branch=variable-chunking#0231552919ffd3877d36052c952dec6c519f10db
+      - pypi: git+https://github.com/maxrjones/xarray.git?branch=poc%2Funified-zarr-chunk-grid#d2b10d2a76dfcf8f53e05138bb8a829347665c94
       - pypi: https://files.pythonhosted.org/packages/39/54/bc2b45559f86543d163b6e294417a107bb87557609007c007ad889afec18/yarl-1.23.0-cp314-cp314-macosx_10_15_x86_64.whl
-      - pypi: git+https://github.com/jhamman/zarr-python.git?branch=feature%2Frectilinear-chunk-grid#f5ac0616cfa323017089f607ed9879100d1e4631
+      - pypi: git+https://github.com/maxrjones/zarr-python.git?branch=poc%2Funified-chunk-grid#f1a1bc3f419aab6104bf290a8e3bc282807084c7
       - pypi: ./
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/_openmp_mutex-4.5-7_kmp_llvm.conda
@@ -576,13 +576,13 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/dd/1a/5d9a402b39ec892d856bbdd9db502ff73ce28cdf4aff72eb1ce1d6843506/universal_pathlib-0.3.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/59/7d02447a55b2e55755011a647479041bc92a82e143f96a8195cb33bd0a1c/virtualenv-21.2.0-py3-none-any.whl
-      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=feature%2Frectilinear-chunk-grid#bb7dc7e1fa0b5ad0e4fb867654071ce3c269d698
+      - pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=poc%2Funified-chunk-grid#3fe140ba396d5b41617161965e4789e0f1550ed3
       - pypi: https://files.pythonhosted.org/packages/db/7d/7f3d619e951c88ed75c6037b246ddcf2d322812ee8ea189be89511721d54/watchdog-6.0.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ec/0f/fa539e2f6a770249907757eaeb9a5ff4deb41c026f8466c1c6d799088a9b/wrapt-2.1.2-cp314-cp314-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/maxrjones/xarray.git?branch=variable-chunking#0231552919ffd3877d36052c952dec6c519f10db
+      - pypi: git+https://github.com/maxrjones/xarray.git?branch=poc%2Funified-zarr-chunk-grid#d2b10d2a76dfcf8f53e05138bb8a829347665c94
       - pypi: https://files.pythonhosted.org/packages/24/f9/e8242b68362bffe6fb536c8db5076861466fc780f0f1b479fc4ffbebb128/yarl-1.23.0-cp314-cp314-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/jhamman/zarr-python.git?branch=feature%2Frectilinear-chunk-grid#f5ac0616cfa323017089f607ed9879100d1e4631
+      - pypi: git+https://github.com/maxrjones/zarr-python.git?branch=poc%2Funified-chunk-grid#f1a1bc3f419aab6104bf290a8e3bc282807084c7
       - pypi: ./
   default:
     channels:
@@ -8498,8 +8498,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: virtual-tiff
-  version: 0.2.2.dev10+g7568287b2.d20260309
-  sha256: c02d34361a14db3c0b15074da6f3a232b033c0f9599f4f6a8d3799b1a18f0ebf
+  version: 0.3.2.dev5+ge32bf1a68
+  sha256: dbf3cccbe3bacd7fb617951ecda6aaab7de7271fe8e111999d2bf3b1c4fbede9
   requires_dist:
   - async-tiff>=0.4.0
   - imagecodecs
@@ -8600,9 +8600,9 @@ packages:
   - virtualizarr[icechunk] ; extra == 'all-writers'
   - virtualizarr[kerchunk] ; extra == 'all-writers'
   requires_python: '>=3.11'
-- pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=feature%2Frectilinear-chunk-grid#bb7dc7e1fa0b5ad0e4fb867654071ce3c269d698
+- pypi: git+https://github.com/maxrjones/VirtualiZarr.git?branch=poc%2Funified-chunk-grid#3fe140ba396d5b41617161965e4789e0f1550ed3
   name: virtualizarr
-  version: 2.4.1.dev15+gbb7dc7e1f
+  version: 2.4.1.dev16+g3fe140ba3
   requires_dist:
   - xarray>=2025.3.0
   - numpy>=2.0.0
@@ -8767,9 +8767,9 @@ packages:
   - types-requests ; extra == 'types'
   - types-setuptools ; extra == 'types'
   requires_python: '>=3.11'
-- pypi: git+https://github.com/maxrjones/xarray.git?branch=variable-chunking#0231552919ffd3877d36052c952dec6c519f10db
+- pypi: git+https://github.com/maxrjones/xarray.git?branch=poc%2Funified-zarr-chunk-grid#d2b10d2a76dfcf8f53e05138bb8a829347665c94
   name: xarray
-  version: 2026.2.1.dev13+g023155291
+  version: 2026.2.1.dev20+gd2b10d2a7
   requires_dist:
   - numpy>=1.26
   - packaging>=24.1
@@ -8782,7 +8782,7 @@ packages:
   - opt-einsum ; extra == 'accel'
   - xarray[accel,etc,io,parallel,viz] ; extra == 'complete'
   - netcdf4>=1.6.0 ; extra == 'io'
-  - h5netcdf>=1.4.0 ; extra == 'io'
+  - h5netcdf[h5py]>=1.4.0 ; extra == 'io'
   - pydap ; extra == 'io'
   - scipy>=1.13 ; extra == 'io'
   - zarr>=2.18 ; extra == 'io'
@@ -8979,91 +8979,6 @@ packages:
   - multidict>=4.0
   - propcache>=0.2.1
   requires_python: '>=3.10'
-- pypi: git+https://github.com/jhamman/zarr-python.git?branch=feature%2Frectilinear-chunk-grid#f5ac0616cfa323017089f607ed9879100d1e4631
-  name: zarr
-  version: 3.1.4.dev142+gf5ac0616c
-  requires_dist:
-  - donfig>=0.8
-  - google-crc32c>=1.5
-  - numcodecs>=0.14
-  - numpy>=2.0
-  - packaging>=22.0
-  - typing-extensions>=4.12
-  - typer ; extra == 'cli'
-  - astroid<4 ; extra == 'dev'
-  - botocore ; extra == 'dev'
-  - coverage>=7.10 ; extra == 'dev'
-  - fsspec>=2023.10.0 ; extra == 'dev'
-  - griffe-inherited-docstrings ; extra == 'dev'
-  - hypothesis ; extra == 'dev'
-  - markdown-exec[ansi] ; extra == 'dev'
-  - mike>=2.1.3 ; extra == 'dev'
-  - mkdocs-material[imaging]>=9.6.14 ; extra == 'dev'
-  - mkdocs-redirects>=1.2.0 ; extra == 'dev'
-  - mkdocs>=1.6.1 ; extra == 'dev'
-  - mkdocstrings-python>=1.16.10 ; extra == 'dev'
-  - mkdocstrings>=0.29.1 ; extra == 'dev'
-  - moto[s3,server] ; extra == 'dev'
-  - mypy ; extra == 'dev'
-  - numcodecs[msgpack] ; extra == 'dev'
-  - numpydoc ; extra == 'dev'
-  - obstore>=0.5.1 ; extra == 'dev'
-  - packaging ; extra == 'dev'
-  - pytest ; extra == 'dev'
-  - pytest-accept ; extra == 'dev'
-  - pytest-asyncio ; extra == 'dev'
-  - pytest-benchmark ; extra == 'dev'
-  - pytest-codspeed ; extra == 'dev'
-  - pytest-cov ; extra == 'dev'
-  - pytest-xdist ; extra == 'dev'
-  - requests ; extra == 'dev'
-  - rich ; extra == 'dev'
-  - ruff ; extra == 'dev'
-  - s3fs>=2023.10.0 ; extra == 'dev'
-  - tomlkit ; extra == 'dev'
-  - towncrier ; extra == 'dev'
-  - universal-pathlib ; extra == 'dev'
-  - uv ; extra == 'dev'
-  - astroid<4 ; extra == 'docs'
-  - griffe-inherited-docstrings ; extra == 'docs'
-  - markdown-exec[ansi] ; extra == 'docs'
-  - mike>=2.1.3 ; extra == 'docs'
-  - mkdocs-material[imaging]>=9.6.14 ; extra == 'docs'
-  - mkdocs-redirects>=1.2.0 ; extra == 'docs'
-  - mkdocs>=1.6.1 ; extra == 'docs'
-  - mkdocstrings-python>=1.16.10 ; extra == 'docs'
-  - mkdocstrings>=0.29.1 ; extra == 'docs'
-  - numcodecs[msgpack] ; extra == 'docs'
-  - pytest ; extra == 'docs'
-  - rich ; extra == 'docs'
-  - ruff ; extra == 'docs'
-  - s3fs>=2023.10.0 ; extra == 'docs'
-  - towncrier ; extra == 'docs'
-  - cupy-cuda12x ; extra == 'gpu'
-  - rich ; extra == 'optional'
-  - universal-pathlib ; extra == 'optional'
-  - fsspec>=2023.10.0 ; extra == 'remote'
-  - obstore>=0.5.1 ; extra == 'remote'
-  - botocore ; extra == 'remote-tests'
-  - fsspec>=2023.10.0 ; extra == 'remote-tests'
-  - moto[s3,server] ; extra == 'remote-tests'
-  - obstore>=0.5.1 ; extra == 'remote-tests'
-  - requests ; extra == 'remote-tests'
-  - s3fs>=2023.10.0 ; extra == 'remote-tests'
-  - coverage>=7.10 ; extra == 'test'
-  - hypothesis ; extra == 'test'
-  - numpydoc ; extra == 'test'
-  - packaging ; extra == 'test'
-  - pytest ; extra == 'test'
-  - pytest-accept ; extra == 'test'
-  - pytest-asyncio ; extra == 'test'
-  - pytest-benchmark ; extra == 'test'
-  - pytest-codspeed ; extra == 'test'
-  - pytest-cov ; extra == 'test'
-  - pytest-xdist ; extra == 'test'
-  - tomlkit ; extra == 'test'
-  - uv ; extra == 'test'
-  requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/44/15/bb13b4913ef95ad5448490821eee4671d0e67673342e4d4070854e5fe081/zarr-3.1.5-py3-none-any.whl
   name: zarr
   version: 3.1.5
@@ -9115,6 +9030,23 @@ packages:
   - rich ; extra == 'test'
   - tomlkit ; extra == 'test'
   - uv ; extra == 'test'
+  requires_python: '>=3.11'
+- pypi: git+https://github.com/maxrjones/zarr-python.git?branch=poc%2Funified-chunk-grid#f1a1bc3f419aab6104bf290a8e3bc282807084c7
+  name: zarr
+  version: 3.1.6.dev64+gf1a1bc3f4
+  requires_dist:
+  - donfig>=0.8
+  - google-crc32c>=1.5
+  - numcodecs>=0.14
+  - numpy>=2.0
+  - packaging>=22.0
+  - typing-extensions>=4.12
+  - typer ; extra == 'cli'
+  - cupy-cuda12x ; extra == 'gpu'
+  - rich ; extra == 'optional'
+  - universal-pathlib ; extra == 'optional'
+  - fsspec>=2023.10.0 ; extra == 'remote'
+  - obstore>=0.5.1 ; extra == 'remote'
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-hb9d3cd8_2.conda
   sha256: 5d7c0e5f0005f74112a34a7425179f4eb6e73c92f5d109e6af4ddeca407c92ab
