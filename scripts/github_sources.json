@@ -1,0 +1,11 @@
+{
+  "test_reference.tif": "https://gitlab.com/Richard.Scott1/raster-analysis-goals/-/raw/main/test_reference.tif?ref_type=heads&inline=false",
+  "SIG0_20250404T234439__VH_A091_E048N063T3_SA020M_V1M1R2_S1AIWGRDH_TUWIEN.tif": "https://data.eodc.eu/collections/SENTINEL1_SIG0_20M/V1M1R2/EQUI7_SA020M/E048N063T3/SIG0_20250404T234439__VH_A091_E048N063T3_SA020M_V1M1R2_S1AIWGRDH_TUWIEN.tif",
+  "rema_mosaic_1km_v2.0_filled_cop30_dem.tif": "https://github.com/mdsumner/rema-ovr/raw/refs/heads/main/rema_mosaic_1km_v2.0_filled_cop30_dem.tif",
+  "TCI.tif": "https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com/sentinel-2-c1-l2a/55/G/EN/2025/3/S2C_T55GEN_20250324T000834_L2A/TCI.tif",
+  "20250331090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif": "https://data.source.coop/ausantarctic/ghrsst-mur-v2/2025/03/31/20250331090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1_analysed_sst.tif",
+  "IBCSO_v2_ice-surface_cog.tif": "https://github.com/mdsumner/ibcso-cog/raw/main/IBCSO_v2_ice-surface_cog.tif",
+  "50N_120W.tif": "https://storage.googleapis.com/earthenginepartners-hansen/GLCLU2000-2020/v2/2000/50N_120W.tif",
+  "40613.tif": "https://cildata.crbs.ucsd.edu/media/images/40613/40613.tif",
+  "B04.tif": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/33/U/WP/2025/6/S2C_33UWP_20250615_0_L2A/B04.tif"
+}

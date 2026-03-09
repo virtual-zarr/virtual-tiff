@@ -4,7 +4,10 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
+from .conftest import requires_network
 
+
+@requires_network
 def test_multiband_planar_tiff_from_source_coop():
     """Test multi-band TIFF with PlanarConfiguration=2 and non-RGB PhotometricInterpretation.
 
@@ -30,3 +33,29 @@ def test_multiband_planar_tiff_from_source_coop():
     assert isinstance(ds, xr.Dataset)
     assert "band" in ds["0"].dims
     assert ds["0"].sizes["band"] == 64
+
+
+@requires_network
+def test_aef_tiff_has_model_transformation():
+    """Test that model_transformation is exposed in attributes when available.
+
+    The AEF TIFFs use ModelTransformationTag instead of
+    ModelPixelScale + ModelTiepoint for georeferencing.
+    """
+    filepath = "s3://us-west-2.opendata.source.coop/tge-labs/aef/v1/annual/2023/10N/xjtqldak16clgy5os-0000000000-0000008192.tiff"
+    store = S3Store(
+        bucket="us-west-2.opendata.source.coop",
+        skip_signature=True,
+        region="us-west-2",
+    )
+    registry = ObjectStoreRegistry({"s3://us-west-2.opendata.source.coop/": store})
+    parser = VirtualTIFF(ifd=0)
+    ms = parser(filepath, registry=registry)
+    ds = xr.open_zarr(ms, zarr_format=3, consolidated=False)
+
+    attrs = ds["0"].attrs
+    assert "model_transformation" in attrs
+    assert isinstance(attrs["model_transformation"], list)
+    assert len(attrs["model_transformation"]) == 16
+    assert "model_pixel_scale" not in attrs
+    assert "model_tiepoint" not in attrs

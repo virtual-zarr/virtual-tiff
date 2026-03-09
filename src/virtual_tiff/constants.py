@@ -1,4 +1,4 @@
-from numcodecs.zarr3 import LZMA, Zlib
+from zarr.codecs.numcodecs import LZMA, Zlib
 
 from virtual_tiff.imagecodecs import (
     DeflateCodec,

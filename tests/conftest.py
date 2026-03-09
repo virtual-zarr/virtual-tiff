@@ -10,6 +10,26 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
+requires_network = pytest.mark.network
+
+
+# Pytest configuration
+def pytest_addoption(parser):
+    """Add command-line flags for pytest."""
+    parser.addoption(
+        "--run-network-tests",
+        action="store_true",
+        help="runs tests requiring a network connection",
+    )
+
+
+def pytest_runtest_setup(item):
+    """Skip network tests unless explicitly enabled."""
+    if "network" in item.keywords and not item.config.getoption("--run-network-tests"):
+        pytest.skip(
+            "set --run-network-tests to run tests requiring an internet connection"
+        )
+
 
 @pytest.fixture
 def geotiff_file(tmp_path: Path) -> str:
@@ -32,18 +52,22 @@ def list_tiffs(folder):
 
 
 def github_examples():
-    data_dir = resolve_folder("tests/dvc/github")
+    data_dir = resolve_folder("tests/data/github")
     return list_tiffs(data_dir)
 
 
-def gdal_autotest_examples():
-    data_dir = resolve_folder("tests/dvc/gdal_autotest")
-    return list_tiffs(data_dir)
+def gdal_examples():
+    """Recursively find all .tif files under tests/data/gdal/, returning paths relative to gdal/."""
+    data_dir = resolve_folder("tests/data/gdal")
+    tif_files = sorted(data_dir.rglob("*.tif"))
+    return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
-def gdal_gcore_examples():
-    data_dir = resolve_folder("tests/dvc/gdal_gcore")
-    return list_tiffs(data_dir)
+def geotiff_test_data_examples():
+    """Recursively find all .tif files under tests/data/geotiff-test-data/, returning paths relative to geotiff-test-data/."""
+    data_dir = resolve_folder("tests/data/geotiff-test-data")
+    tif_files = sorted(data_dir.rglob("*.tif"))
+    return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
 def loadable_dataset(filepath, registry):
