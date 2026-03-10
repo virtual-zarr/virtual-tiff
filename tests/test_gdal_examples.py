@@ -76,6 +76,12 @@ def run_gdal_test(rel_path):
             NotImplementedError,
             r"Nested grids are not supported, but file has (.*?)",
         )
+    elif filename in webp_alpha:
+        match_error(
+            filepath,
+            NotImplementedError,
+            r"WEBP compression with extra samples \(alpha\) is not yet supported",
+        )
     else:
         rioxarray_comparison(f"file://{filepath}")
 
@@ -142,40 +148,7 @@ slow_tests = [
     "bug1488.tif",
 ]
 nested = ["test_hgrid_with_subgrid.tif"]
-partial_chunks = [
-    "isis3_geotiff.tif",
-    "bug_6526_input.tif",
-    "rgbsmall_uint16_LZW_predictor_2.tif",
-    "stefan_full_greyalpha_uint16_LZW_predictor_2.tif",
-    "pyramid_shaded_ref.tif",
-    "melb-small.tif",
-    "utmsmall.tif",
-    "n43.tif",
-    "test_gdal2tiles_exclude_transparent.tif",
-    "unstable_rpc_with_dem_source.tif",
-    "warp_52_dem.tif",
-    "rgbsmall_uint32_LZW_predictor_2.tif",
-    "rgbsmall_uint64_LZW_predictor_2.tif",
-    "utilities_utmsmall.tif",
-    "stefan_full_rgba_LZW_predictor_2.tif",
-    "stefan_full_rgba_photometric_rgb.tif",
-    "dstsize_larger_than_source.tif",
-    "sstgeo.tif",
-    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
-    "test_gf.tif",
-    "utmsmall.tif",
-    "stefan_full_rgba_jpeg_contig.tif",
-    "stefan_full_rgba_jpeg_separate.tif",
-    "vrtmisc16_tile2.tif",
-    "tif_jpeg_too_big_last_stripe.tif",
-    "transformer_13_dem.tif",
-    "vrtmisc16_tile1.tif",
-    "stefan_full_rgba.tif",
-    "VH.tif",
-    "VV.tif",
-    "geog_arc_second.tif",
-    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
-    "quad-lzw-old-style.tif",
+webp_alpha = [
     "rgbsmall_WEBP_RGBA_alpha_omitted.tif",
 ]
 byte_counts = [
@@ -292,6 +265,40 @@ xfail_reshape = [
     "contig_tiled.tif",
     "separate_tiled.tif",
     "stripbytecounts_count_not_same_as_stripoffsets_count.tif",
+]
+partial_chunks = [
+    "isis3_geotiff.tif",
+    "bug_6526_input.tif",
+    "rgbsmall_uint16_LZW_predictor_2.tif",
+    "stefan_full_greyalpha_uint16_LZW_predictor_2.tif",
+    "pyramid_shaded_ref.tif",
+    "melb-small.tif",
+    "utmsmall.tif",
+    "n43.tif",
+    "test_gdal2tiles_exclude_transparent.tif",
+    "unstable_rpc_with_dem_source.tif",
+    "warp_52_dem.tif",
+    "rgbsmall_uint32_LZW_predictor_2.tif",
+    "rgbsmall_uint64_LZW_predictor_2.tif",
+    "utilities_utmsmall.tif",
+    "stefan_full_rgba_LZW_predictor_2.tif",
+    "stefan_full_rgba_photometric_rgb.tif",
+    "dstsize_larger_than_source.tif",
+    "sstgeo.tif",
+    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
+    "test_gf.tif",
+    "stefan_full_rgba_jpeg_contig.tif",
+    "stefan_full_rgba_jpeg_separate.tif",
+    "vrtmisc16_tile2.tif",
+    "tif_jpeg_too_big_last_stripe.tif",
+    "transformer_13_dem.tif",
+    "vrtmisc16_tile1.tif",
+    "stefan_full_rgba.tif",
+    "VH.tif",
+    "VV.tif",
+    "geog_arc_second.tif",
+    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
+    "quad-lzw-old-style.tif",
 ]
 skip = (
     slow_tests
