@@ -78,6 +78,12 @@ def run_gdal_test(rel_path):
             NotImplementedError,
             r"Nested grids are not supported, but file has (.*?)",
         )
+    elif filename in webp_alpha:
+        match_error(
+            filepath,
+            NotImplementedError,
+            r"WEBP compression with extra samples \(alpha\) is not yet supported",
+        )
     else:
         rioxarray_comparison(f"file://{filepath}")
 
@@ -144,6 +150,9 @@ slow_tests = [
     "bug1488.tif",
 ]
 nested = ["test_hgrid_with_subgrid.tif"]
+webp_alpha = [
+    "rgbsmall_WEBP_RGBA_alpha_omitted.tif",
+]
 byte_counts = [
     "VH.tif",
     "sparse_nodata_one.tif",
@@ -292,7 +301,6 @@ partial_chunks = [
     "geog_arc_second.tif",
     "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
     "quad-lzw-old-style.tif",
-    "rgbsmall_WEBP_RGBA_alpha_omitted.tif",
 ]
 skip = (
     slow_tests

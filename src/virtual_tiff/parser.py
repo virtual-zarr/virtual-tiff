@@ -247,6 +247,12 @@ def _construct_manifest_array(
         endian=endian,
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
+    if ifd.compression == 50001 and ifd.extra_samples:
+        # WEBP compression may omit alpha channels from the encoded data.
+        # Reconstructing the omitted channels is not yet supported.
+        raise NotImplementedError(
+            "WEBP compression with extra samples (alpha) is not yet supported."
+        )
     chunks: tuple[int, ...] | list[list[int]]
     if ifd.tile_height:
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
