@@ -263,7 +263,7 @@ def test_chunky_codec_evolve_from_array_spec_none_endian_multi_byte():
 def test_horizontal_delta_to_json_v3():
     codec = HorizontalDeltaCodec()
     v3 = codec.to_json(zarr_format=3)
-    assert v3 == {"name": "HorizontalDeltaCodec"}
+    assert v3 == {"name": "HorizontalDeltaCodec", "configuration": {"endian": "little"}}
     restored = HorizontalDeltaCodec.from_json(v3)
     assert isinstance(restored, HorizontalDeltaCodec)
 

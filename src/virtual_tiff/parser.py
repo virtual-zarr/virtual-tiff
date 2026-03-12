@@ -114,7 +114,7 @@ def _get_codecs(
 ) -> list[BaseCodec]:
     codecs = []
     if ifd.predictor == 2:
-        codecs.append(HorizontalDeltaCodec())
+        codecs.append(HorizontalDeltaCodec(endian=str(endian)))
     elif ifd.predictor == 3:
         codec = FloatPredCodec(dtype=dtype.str, shape=chunks)
         codecs.append(codec)
