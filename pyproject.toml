@@ -97,6 +97,7 @@ async_tiff = "*"
 # Define a feature set for rectilinear chunk grid extension
 [tool.pixi.feature.chunk-grid-ext.dependencies]
 rasterio = "*"
+lerc = "<4.1"  # 4.1 has dylib symbol conflict with imagecodecs' bundled libLerc
 
 [tool.pixi.feature.chunk-grid-ext.pypi-dependencies]
 zarr = { git = "https://github.com/maxrjones/zarr-python.git", branch = "poc/unified-chunk-grid" }

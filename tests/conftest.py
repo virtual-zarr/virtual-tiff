@@ -5,12 +5,20 @@ import numpy as np
 import pytest
 import rioxarray
 import xarray as xr
+import zarr
 from obstore.store import LocalStore
 from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
 requires_network = pytest.mark.network
+
+
+@pytest.fixture(autouse=True)
+def _enable_rectilinear_chunks():
+    """Enable rectilinear chunks for all tests."""
+    with zarr.config.set({"array.rectilinear_chunks": True}):
+        yield
 
 
 # Pytest configuration

@@ -15,15 +15,15 @@ from virtualizarr.registry import ObjectStoreRegistry
 from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
 from zarr.core.chunk_grids import ChunkGrid
+from zarr.core.chunk_grids import _is_rectilinear_chunks as _is_nested_sequence
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 from zarr.dtype import parse_data_type
 
-from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec, TruncateCodec
+from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
 from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
-    _is_nested_sequence,
     check_no_partial_strips,
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
@@ -98,6 +98,48 @@ def _get_chunks_from_tiles(
     return chunks, offsets, byte_counts
 
 
+def _is_last_strip_padded(
+    ifd: ImageFileDirectory,
+    remainder: int,
+    rows_per_strip: int,
+) -> bool:
+    """Detect whether the last strip is padded to full rows_per_strip size.
+
+    For uncompressed TIFFs, compares the last strip's byte count against the
+    expected size for a full strip. For compressed TIFFs, uses a heuristic
+    based on compressed byte counts to avoid decompression.
+
+    Returns True if the last strip is padded (use regular grid),
+    False if unpadded (use rectilinear grid).
+    """
+    byte_counts = ifd.strip_byte_counts
+    if not byte_counts or len(byte_counts) < 2:
+        return False
+
+    bytes_per_row = ifd.image_width * sum(ifd.bits_per_sample) // 8
+    full_strip_bytes = rows_per_strip * bytes_per_row
+    last_strip_bytes = byte_counts[-1]
+
+    if ifd.compression <= 1:
+        # Uncompressed: compare byte counts directly
+        return last_strip_bytes >= full_strip_bytes
+    else:
+        # Compressed: compare against the expected full strip byte count.
+        # If the last strip's compressed size equals a full strip's compressed
+        # size (same as other strips), it's likely padded.
+        # This heuristic avoids decompression: if all strips have the same
+        # byte count, the last strip is almost certainly padded.
+        if len(set(byte_counts)) == 1:
+            return True
+        # If the last strip is significantly smaller than the others,
+        # it's likely unpadded. Use the median of non-last strips as reference.
+        other_counts = byte_counts[:-1]
+        median_count = sorted(other_counts)[len(other_counts) // 2]
+        # If last strip is within 10% of median, assume padded
+        # (compression ratios are similar for similar data)
+        return last_strip_bytes >= median_count * 0.9
+
+
 def _get_chunks_from_strips(
     ifd: ImageFileDirectory, image_height: int
 ) -> tuple[tuple[int, ...] | list[list[int]], list[int], list[int]]:
@@ -106,10 +148,19 @@ def _get_chunks_from_strips(
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if not has_rectilinear_chunk_grid_support:
-            check_no_partial_strips(image_height, rows_per_strip)
-        quotient = image_height // rows_per_strip
-        chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
+        if has_rectilinear_chunk_grid_support and not _is_last_strip_padded(
+            ifd, remainder, rows_per_strip
+        ):
+            # Last strip is unpadded — use rectilinear grid with actual sizes
+            quotient = image_height // rows_per_strip
+            chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
+        else:
+            # Last strip is padded (or no rectilinear support) — use regular
+            # grid. The codec will receive full-strip-sized buffers and zarr's
+            # boundary clipping handles the data trimming.
+            if not has_rectilinear_chunk_grid_support:
+                check_no_partial_strips(image_height, rows_per_strip)
+            chunks = (rows_per_strip, ifd.image_width)
     else:
         chunks = (rows_per_strip, ifd.image_width)
     offsets = ifd.strip_offsets
@@ -137,8 +188,6 @@ def _get_codecs(
         codecs.append(ChunkyCodec(endian=str(endian)))
     else:
         codecs.append(BytesCodec(endian=str(endian)))
-    if _is_nested_sequence(chunks):
-        codecs.append(TruncateCodec())
     if compression > 1:
         codecs.append(_get_compression(ifd, compression))
     return codecs
@@ -291,7 +340,7 @@ def _construct_manifest_array(
     else:
         chunk_grid = {
             "name": "rectilinear",
-            "configuration": {"chunk_shapes": chunks},
+            "configuration": {"kind": "inline", "chunk_shapes": chunks},
         }
 
     metadata = ArrayV3Metadata(
