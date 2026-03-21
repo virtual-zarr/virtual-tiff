@@ -117,18 +117,45 @@ def _decompress_strip(compression: int, data: bytes) -> int:
     return len(result)
 
 
+def _fetch_last_strip(
+    ifd: ImageFileDirectory,
+    object_store: ObjectStore,
+    store_path: str,
+) -> bytes | None:
+    """Fetch the last strip's compressed bytes if needed for padding detection.
+
+    Returns None when padding detection doesn't require a fetch: tiles,
+    single-strip images, evenly divisible strips, or uncompressed data.
+    """
+    if ifd.tile_height or not ifd.rows_per_strip:
+        return None
+    if ifd.rows_per_strip >= ifd.image_height:
+        return None
+    if ifd.image_height % ifd.rows_per_strip == 0:
+        return None
+    if ifd.compression <= 1:
+        return None
+
+    last_offset = ifd.strip_offsets[-1]
+    last_byte_count = ifd.strip_byte_counts[-1]
+    return bytes(
+        object_store.get_range(
+            store_path, start=last_offset, end=last_offset + last_byte_count
+        )
+    )
+
+
 def _is_last_strip_padded(
     ifd: ImageFileDirectory,
     remainder: int,
     rows_per_strip: int,
-    object_store: ObjectStore,
-    store_path: str,
+    last_strip_data: bytes | None,
 ) -> bool:
     """Detect whether the last strip is padded to full rows_per_strip size.
 
     For uncompressed TIFFs, compares the last strip's byte count against the
-    expected size for a full strip. For compressed TIFFs, fetches and
-    decompresses the last strip to determine its actual size.
+    expected size for a full strip. For compressed TIFFs, decompresses the
+    provided last strip data to determine its actual size.
 
     Returns True if the last strip is padded (use regular grid),
     False if unpadded (use rectilinear grid).
@@ -144,30 +171,25 @@ def _is_last_strip_padded(
         # Uncompressed: compare byte counts directly
         return byte_counts[-1] >= full_strip_bytes
 
-    # Compressed: fetch and decompress the last strip to check its actual size
-    last_offset = ifd.strip_offsets[-1]
-    last_byte_count = byte_counts[-1]
-    compressed = object_store.get_range(
-        store_path, start=last_offset, end=last_offset + last_byte_count
-    )
-    decompressed_size = _decompress_strip(ifd.compression, bytes(compressed))
-    return decompressed_size >= full_strip_bytes
+    # Compressed: decompress the last strip to check its actual size
+    if last_strip_data is not None:
+        decompressed_size = _decompress_strip(ifd.compression, last_strip_data)
+        return decompressed_size >= full_strip_bytes
+
+    return False
 
 
 def _get_chunks_from_strips(
     ifd: ImageFileDirectory,
     image_height: int,
-    object_store: ObjectStore,
-    store_path: str,
+    last_strip_data: bytes | None,
 ) -> tuple[tuple[int, ...] | list[list[int]], list[int], list[int]]:
     rows_per_strip: int = ifd.rows_per_strip
     chunks: tuple[int, ...] | list[list[int]]
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if not _is_last_strip_padded(
-            ifd, remainder, rows_per_strip, object_store, store_path
-        ):
+        if not _is_last_strip_padded(ifd, remainder, rows_per_strip, last_strip_data):
             # Last strip is unpadded — use rectilinear grid with actual sizes
             quotient = image_height // rows_per_strip
             chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
@@ -304,8 +326,7 @@ def _construct_manifest_array(
     ifd: ImageFileDirectory,
     url: str,
     endian: str,
-    object_store: ObjectStore,
-    store_path: str,
+    last_strip_data: bytes | None,
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
@@ -327,10 +348,7 @@ def _construct_manifest_array(
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
         chunks, offsets, byte_counts = _get_chunks_from_strips(
-            ifd,
-            image_height=shape[0],
-            object_store=object_store,
-            store_path=store_path,
+            ifd, image_height=shape[0], last_strip_data=last_strip_data
         )
     else:
         raise NotImplementedError(
@@ -435,6 +453,9 @@ def _build_manifest_arrays(
 ) -> dict[str, ManifestArray]:
     """Build manifest arrays from TIFF IFDs.
 
+    Fetches the last strip's compressed bytes for each IFD that needs
+    padding detection, then delegates to store-agnostic functions.
+
     Args:
         tiff: Opened TIFF file
         url: Full URL path to the TIFF file
@@ -450,22 +471,17 @@ def _build_manifest_arrays(
 
     if ifd_index is not None:
         # Process single specified IFD
+        ifd = tiff.ifds[ifd_index]
+        last_strip_data = _fetch_last_strip(ifd, object_store, store_path)
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index],
-            url=url,
-            endian=endian,
-            object_store=object_store,
-            store_path=store_path,
+            ifd=ifd, url=url, endian=endian, last_strip_data=last_strip_data
         )
     else:
         # Process all IFDs
         for idx, ifd in enumerate(tiff.ifds):
+            last_strip_data = _fetch_last_strip(ifd, object_store, store_path)
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd,
-                url=url,
-                endian=endian,
-                object_store=object_store,
-                store_path=store_path,
+                ifd=ifd, url=url, endian=endian, last_strip_data=last_strip_data
             )
 
     return manifest_arrays
