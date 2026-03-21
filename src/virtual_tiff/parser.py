@@ -14,7 +14,6 @@ from virtualizarr.manifests import (
 from virtualizarr.registry import ObjectStoreRegistry
 from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
-from zarr.core.chunk_grids import ChunkGrid
 from zarr.core.chunk_grids import _is_rectilinear_chunks as _is_nested_sequence
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
@@ -24,12 +23,9 @@ from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
 from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
-    check_no_partial_strips,
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
-
-has_rectilinear_chunk_grid_support = hasattr(ChunkGrid, "is_regular")
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
@@ -148,18 +144,14 @@ def _get_chunks_from_strips(
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if has_rectilinear_chunk_grid_support and not _is_last_strip_padded(
-            ifd, remainder, rows_per_strip
-        ):
+        if not _is_last_strip_padded(ifd, remainder, rows_per_strip):
             # Last strip is unpadded — use rectilinear grid with actual sizes
             quotient = image_height // rows_per_strip
             chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
         else:
-            # Last strip is padded (or no rectilinear support) — use regular
-            # grid. The codec will receive full-strip-sized buffers and zarr's
-            # boundary clipping handles the data trimming.
-            if not has_rectilinear_chunk_grid_support:
-                check_no_partial_strips(image_height, rows_per_strip)
+            # Last strip is padded — use regular grid. The codec will receive
+            # full-strip-sized buffers and zarr's boundary clipping handles
+            # the data trimming.
             chunks = (rows_per_strip, ifd.image_width)
     else:
         chunks = (rows_per_strip, ifd.image_width)

@@ -8,7 +8,6 @@ from virtualizarr import open_virtual_dataset
 from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
-from virtual_tiff.parser import has_rectilinear_chunk_grid_support
 
 from .conftest import (
     gdal_examples,
@@ -35,13 +34,6 @@ def run_gdal_test(rel_path):
     if filename == "float16.tif" and Version(_rioxarray_version) < Version("0.20.0"):
         pytest.xfail("rioxarray<0.20.0 does not support float16")
     filepath = f"{resolve_folder('tests/data/gdal')}/{rel_path}"
-    if filename in partial_chunks and not has_rectilinear_chunk_grid_support:
-        match_error(
-            filepath,
-            ValueError,
-            r"Zarr's default chunk grid expects all chunks to be equal size",
-        )
-        return
     if filename in unknown_compressor:
         match_error(
             filepath,
