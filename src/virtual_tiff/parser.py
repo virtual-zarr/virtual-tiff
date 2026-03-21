@@ -94,16 +94,41 @@ def _get_chunks_from_tiles(
     return chunks, offsets, byte_counts
 
 
+def _decompress_strip(compression: int, data: bytes) -> int:
+    """Decompress raw TIFF strip data and return the decompressed byte count."""
+    import lzma as _lzma
+    import zlib as _zlib
+
+    if compression in (8, 32946):  # Zlib/Deflate
+        return len(_zlib.decompress(data))
+    elif compression == 34925:  # LZMA
+        return len(_lzma.decompress(data))
+
+    codec_cls = COMPRESSORS.get(compression)
+    if codec_cls is None:
+        raise ValueError(f"Unknown compression tag: {compression}")
+
+    from zarr.registry import get_numcodec
+
+    numcodec = get_numcodec({"id": codec_cls.codec_name})
+    result = numcodec.decode(data)
+    if isinstance(result, np.ndarray):
+        return result.nbytes
+    return len(result)
+
+
 def _is_last_strip_padded(
     ifd: ImageFileDirectory,
     remainder: int,
     rows_per_strip: int,
+    object_store: ObjectStore,
+    store_path: str,
 ) -> bool:
     """Detect whether the last strip is padded to full rows_per_strip size.
 
     For uncompressed TIFFs, compares the last strip's byte count against the
-    expected size for a full strip. For compressed TIFFs, uses a heuristic
-    based on compressed byte counts to avoid decompression.
+    expected size for a full strip. For compressed TIFFs, fetches and
+    decompresses the last strip to determine its actual size.
 
     Returns True if the last strip is padded (use regular grid),
     False if unpadded (use rectilinear grid).
@@ -114,37 +139,35 @@ def _is_last_strip_padded(
 
     bytes_per_row = ifd.image_width * sum(ifd.bits_per_sample) // 8
     full_strip_bytes = rows_per_strip * bytes_per_row
-    last_strip_bytes = byte_counts[-1]
 
     if ifd.compression <= 1:
         # Uncompressed: compare byte counts directly
-        return last_strip_bytes >= full_strip_bytes
-    else:
-        # Compressed: compare against the expected full strip byte count.
-        # If the last strip's compressed size equals a full strip's compressed
-        # size (same as other strips), it's likely padded.
-        # This heuristic avoids decompression: if all strips have the same
-        # byte count, the last strip is almost certainly padded.
-        if len(set(byte_counts)) == 1:
-            return True
-        # If the last strip is significantly smaller than the others,
-        # it's likely unpadded. Use the median of non-last strips as reference.
-        other_counts = byte_counts[:-1]
-        median_count = sorted(other_counts)[len(other_counts) // 2]
-        # If last strip is within 10% of median, assume padded
-        # (compression ratios are similar for similar data)
-        return last_strip_bytes >= median_count * 0.9
+        return byte_counts[-1] >= full_strip_bytes
+
+    # Compressed: fetch and decompress the last strip to check its actual size
+    last_offset = ifd.strip_offsets[-1]
+    last_byte_count = byte_counts[-1]
+    compressed = object_store.get_range(
+        store_path, start=last_offset, end=last_offset + last_byte_count
+    )
+    decompressed_size = _decompress_strip(ifd.compression, bytes(compressed))
+    return decompressed_size >= full_strip_bytes
 
 
 def _get_chunks_from_strips(
-    ifd: ImageFileDirectory, image_height: int
+    ifd: ImageFileDirectory,
+    image_height: int,
+    object_store: ObjectStore,
+    store_path: str,
 ) -> tuple[tuple[int, ...] | list[list[int]], list[int], list[int]]:
     rows_per_strip: int = ifd.rows_per_strip
     chunks: tuple[int, ...] | list[list[int]]
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if not _is_last_strip_padded(ifd, remainder, rows_per_strip):
+        if not _is_last_strip_padded(
+            ifd, remainder, rows_per_strip, object_store, store_path
+        ):
             # Last strip is unpadded — use rectilinear grid with actual sizes
             quotient = image_height // rows_per_strip
             chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
@@ -277,7 +300,12 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
 
 
 def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, url: str, endian: str
+    *,
+    ifd: ImageFileDirectory,
+    url: str,
+    endian: str,
+    object_store: ObjectStore,
+    store_path: str,
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
@@ -299,7 +327,10 @@ def _construct_manifest_array(
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
         chunks, offsets, byte_counts = _get_chunks_from_strips(
-            ifd, image_height=shape[0]
+            ifd,
+            image_height=shape[0],
+            object_store=object_store,
+            store_path=store_path,
         )
     else:
         raise NotImplementedError(
@@ -355,15 +386,19 @@ def _construct_manifest_group(
     path: str,
     *,
     endian: str,
+    object_store: ObjectStore,
+    store_path: str,
     ifd: int | None = None,
     ifd_layout: Literal["flat", "nested"] = "flat",
 ) -> ManifestGroup:
     """Construct a ManifestGroup from TIFF IFDs.
 
     Args:
-        store: Object store for reading the TIFF
-        path: Full URL path to the TIFF file
+        store: async-tiff object store for reading the TIFF
+        path: Path within the async-tiff store
         endian: Byte order ('little' or 'big')
+        object_store: obstore ObjectStore for fetching raw bytes
+        store_path: Path within the obstore
         ifd: Specific IFD index to process, or None for all IFDs
         ifd_layout: How to organize IFDs - 'flat' for single group, 'nested' for group per IFD
 
@@ -374,7 +409,9 @@ def _construct_manifest_group(
     tiff = sync(_open_tiff(store=store, path=path))
 
     # Build manifest arrays from selected IFDs
-    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
+    manifest_arrays = _build_manifest_arrays(
+        tiff, url, endian, ifd, object_store, store_path
+    )
 
     # Organize into appropriate group structure
     attrs: dict[str, Any] = {}
@@ -393,14 +430,18 @@ def _build_manifest_arrays(
     url: str,
     endian: str,
     ifd_index: int | None,
+    object_store: ObjectStore,
+    store_path: str,
 ) -> dict[str, ManifestArray]:
     """Build manifest arrays from TIFF IFDs.
 
     Args:
         tiff: Opened TIFF file
-        path: Full URL path to the TIFF file
+        url: Full URL path to the TIFF file
         endian: Byte order
         ifd_index: Specific IFD to process, or None for all
+        object_store: Object store for fetching raw bytes
+        store_path: Path within the store
 
     Returns:
         Dictionary mapping IFD indices (as strings) to ManifestArrays
@@ -410,13 +451,21 @@ def _build_manifest_arrays(
     if ifd_index is not None:
         # Process single specified IFD
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index], url=url, endian=endian
+            ifd=tiff.ifds[ifd_index],
+            url=url,
+            endian=endian,
+            object_store=object_store,
+            store_path=store_path,
         )
     else:
         # Process all IFDs
         for idx, ifd in enumerate(tiff.ifds):
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd, url=url, endian=endian
+                ifd=ifd,
+                url=url,
+                endian=endian,
+                object_store=object_store,
+                store_path=store_path,
             )
 
     return manifest_arrays
@@ -486,8 +535,10 @@ class VirtualTIFF:
             url,
             store=async_tiff_store,
             path=path_in_store,
-            ifd=self._ifd,
             endian=endian,
+            object_store=store,
+            store_path=path_in_store,
+            ifd=self._ifd,
             ifd_layout=self.ifd_layout,
         )
         # Convert to a manifest store

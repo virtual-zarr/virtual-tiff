@@ -232,8 +232,19 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         #    Passing dtype= forces the accumulation in the original width.
         dtype = chunk_array._data.dtype
         uint_dtype = np.dtype(f"u{dtype.itemsize}")
-        result = chunk_array._data.view(uint_dtype)
-        result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+
+        if not dtype.isnative and dtype.itemsize > 1:
+            # Non-native byte order: convert to native, cumsum, convert back.
+            # cumsum always produces native byte order output, so operating
+            # directly on non-native data corrupts the result.
+            native_dtype = dtype.newbyteorder("=")
+            data = chunk_array._data.astype(native_dtype).view(uint_dtype)
+            result = data.cumsum(axis=-1, dtype=uint_dtype)
+            result = result.view(native_dtype).astype(dtype)
+        else:
+            result = chunk_array._data.view(uint_dtype)
+            result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+
         return chunk_array.__class__(result)
 
     async def _encode_single(
