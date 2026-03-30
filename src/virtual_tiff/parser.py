@@ -147,7 +147,6 @@ def _fetch_last_strip(
 
 def _is_last_strip_padded(
     ifd: ImageFileDirectory,
-    remainder: int,
     rows_per_strip: int,
     last_strip_data: bytes | None,
 ) -> bool:
@@ -189,7 +188,7 @@ def _get_chunks_from_strips(
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if not _is_last_strip_padded(ifd, remainder, rows_per_strip, last_strip_data):
+        if not _is_last_strip_padded(ifd, rows_per_strip, last_strip_data):
             # Last strip is unpadded — use rectilinear grid with actual sizes
             quotient = image_height // rows_per_strip
             chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
