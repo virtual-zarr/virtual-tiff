@@ -51,6 +51,7 @@ dev = [
   "s3fs",
   "scipy",
   "earthaccess",
+  "obspec-utils[aiohttp]",
   # docs
   "mkdocs-material[imaging]>=9.6.14",
   "mkdocs>=1.6.1",
