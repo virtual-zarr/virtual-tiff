@@ -14,6 +14,8 @@ extra:
 
 nav:
   - "index.md"
+  - Design:
+      - design/fill-values.md
   - API Reference:
       - api/parser.md
 watch:

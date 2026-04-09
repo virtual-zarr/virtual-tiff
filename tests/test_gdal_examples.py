@@ -27,12 +27,23 @@ def match_error(filepath, error, match):
         )
 
 
-def run_gdal_test(rel_path):
+def run_gdal_test(rel_path, mask_and_scale=True):
     filename = Path(rel_path).name
     if filename in skip:
         pytest.xfail("Known failure")
     if filename == "float16.tif" and Version(_rioxarray_version) < Version("0.20.0"):
         pytest.xfail("rioxarray<0.20.0 does not support float16")
+    if filename in xfail_complex_fill:
+        pytest.xfail("Complex dtype FillValueCoder support not yet in released xarray")
+    if filename in xfail_nodata_out_of_range:
+        pytest.xfail("GDAL_NODATA value out of range for array dtype")
+    if mask_and_scale:
+        if filename in xfail_alpha_masking:
+            pytest.xfail("Alpha band masking not supported by virtual-tiff")
+        if filename in xfail_mask_ifd:
+            pytest.xfail("Internal TIFF mask IFDs not supported by virtual-tiff")
+        if filename in xfail_nodata_values:
+            pytest.xfail("Per-band NODATA_VALUES tag not parsed by virtual-tiff")
     filepath = f"{resolve_folder('tests/data/gdal')}/{rel_path}"
     if filename in unknown_compressor:
         match_error(
@@ -83,12 +94,13 @@ def run_gdal_test(rel_path):
             r"WEBP compression with extra samples \(alpha\) is not yet supported",
         )
     else:
-        rioxarray_comparison(f"file://{filepath}")
+        rioxarray_comparison(f"file://{filepath}", mask_and_scale=mask_and_scale)
 
 
+@pytest.mark.parametrize("mask_and_scale", [True, False])
 @pytest.mark.parametrize("rel_path", gdal_examples())
-def test_against_rioxarray_gdal(rel_path):
-    run_gdal_test(rel_path)
+def test_against_rioxarray_gdal(rel_path, mask_and_scale):
+    run_gdal_test(rel_path, mask_and_scale=mask_and_scale)
 
 
 corrupted = [
@@ -299,6 +311,41 @@ partial_chunks = [
     "geog_arc_second.tif",
     "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
     "quad-lzw-old-style.tif",
+]
+xfail_alpha_masking = [
+    # rioxarray masks via alpha band (ExtraSamples); virtual-tiff does not
+    "bug4468.tif",
+    "rgba.tif",
+    "rgba_with_alpha_0_and_255.tif",
+    "stefan_full_greyalpha.tif",
+    "stefan_full_greyalpha_byte_LZW_predictor_2.tif",
+    "test_11555.tif",
+    "expected_MAP.tif",
+    "expected_TILES.tif",
+    "unstable_rpc_with_dem_blank_output.tif",
+]
+xfail_mask_ifd = [
+    # rioxarray masks via internal TIFF mask IFDs; virtual-tiff does not support SubIFDs
+    "test3_with_1mask_1bit.tif",
+    "test3_with_mask_1bit.tif",
+    "test3_with_mask_1bit_and_ovr.tif",
+    "test3_with_mask_8bit.tif",
+    "test_with_mask_1bit.tif",
+    "test_with_mask_1bit_and_ovr.tif",
+    "test_with_mask_8bit.tif",
+]
+xfail_nodata_values = [
+    # GDAL NODATA_VALUES tag (per-band nodata); not yet parsed by virtual-tiff
+    "test_nodatavalues.tif",
+]
+xfail_complex_fill = [
+    # Complex dtype FillValueCoder support not yet in released xarray
+    "complex_float32.tif",
+    "complex_non_zero_real_zero_imag.tif",
+]
+xfail_nodata_out_of_range = [
+    # GDAL_NODATA value cannot be represented in the array's dtype
+    "test_gdalwarp_lib_128_dem.tif",
 ]
 skip = (
     slow_tests

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
 
 import numpy as np
@@ -26,6 +27,7 @@ from virtual_tiff.utils import (
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
+from virtual_tiff.vendor.xarray.zarr import FillValueCoder
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
@@ -38,6 +40,154 @@ GDAL_METADATA_TAG = 42112
 GDAL_NODATA_TAG = 42113
 ZSTD_LEVEL_TAG = "65564"
 DEFAULT_ZSTD_LEVEL = 9
+
+
+_MSVC_INF_MAP = {
+    "1.#INF": "inf",
+    "-1.#INF": "-inf",
+    "1.#QNAN": "nan",
+    "-1.#QNAN": "nan",
+    "1.#IND": "nan",
+    "-1.#IND": "nan",
+}
+
+
+def _parse_fill_value(value: str, dtype: np.dtype) -> Any:
+    """Parse a string fill value into the correct numpy scalar for the given dtype.
+
+    Parameters
+    ----------
+    value
+        String representation of the fill value (e.g. "-9999" or "nan").
+    dtype
+        Target numpy dtype.
+
+    Returns
+    -------
+    Numpy scalar matching dtype.
+
+    Raises
+    ------
+    ValueError
+        If the string cannot be parsed as the target dtype.
+    """
+    # Normalize MSVC-style infinity/NaN representations
+    normalized = _MSVC_INF_MAP.get(value, value)
+    try:
+        return np.dtype(dtype).type(normalized)
+    except (ValueError, OverflowError) as e:
+        raise ValueError(f"Cannot parse fill value {value!r} as {dtype}: {e}") from e
+
+
+def _consolidate_fill_value(
+    attrs: dict[str, Any], dtype: np.dtype
+) -> tuple[dict[str, Any], Any]:
+    """Extract, validate, and consolidate fill values from TIFF attributes.
+
+    TIFF files (especially those converted from NetCDF) may carry fill value
+    information in multiple places, all as strings:
+
+    - ``gdal_no_data``: from the GDAL_NODATA tag (tag 42113)
+    - ``_FillValue``: from GDAL metadata XML (CF convention)
+    - ``missing_value``: from GDAL metadata XML (older CF convention)
+
+    This function:
+
+    1. Extracts fill values from all three sources
+    2. Parses them from strings into the array's dtype
+    3. Validates that all present values are consistent
+    4. Returns a properly typed Zarr fill_value and cleaned-up attributes
+       with ``_FillValue`` encoded for xarray's ``FillValueCoder``
+    5. Removes per-variable prefixed duplicates (e.g. ``swe#_FillValue``)
+       when they match the top-level value
+
+    Parameters
+    ----------
+    attrs
+        Mutable dictionary of array attributes. Will be modified in place
+        to remove raw string fill values and add encoded versions.
+    dtype
+        The numpy dtype of the array.
+
+    Returns
+    -------
+    attrs
+        The cleaned-up attributes dictionary with properly encoded
+        ``_FillValue`` (if applicable).
+    fill_value
+        A numpy scalar to use as the Zarr ``fill_value``, or None if no
+        fill value was found (caller should fall back to dtype default).
+    """
+    # Collect raw string values from all sources
+    _FILL_VALUE_KEYS = ("_FillValue", "missing_value", "gdal_no_data")
+    raw_values: dict[str, str] = {}
+    for key in _FILL_VALUE_KEYS:
+        if key in attrs and isinstance(attrs[key], str):
+            raw_values[key] = attrs[key]
+
+    if not raw_values:
+        return attrs, None
+
+    # Parse all values into the target dtype
+    parsed: dict[str, Any] = {}
+    for key, raw in raw_values.items():
+        parsed[key] = _parse_fill_value(raw, dtype)
+
+    # Validate consistency — all parsed values must be equal
+    unique_values = set()
+    for v in parsed.values():
+        if dtype.kind == "f" and np.isnan(v):
+            unique_values.add("nan")
+        else:
+            unique_values.add(v)
+
+    if len(unique_values) > 1:
+        detail = ", ".join(f"{k}={v!r}" for k, v in parsed.items())
+        warnings.warn(
+            f"Conflicting fill values found: {detail}. "
+            f"Using gdal_no_data as the authoritative source.",
+            stacklevel=3,
+        )
+
+    # Determine the authoritative fill value (gdal_no_data takes priority as
+    # it is the TIFF-native source; _FillValue and missing_value are
+    # reconstructed from GDAL metadata XML and may have lost precision)
+    if "gdal_no_data" in parsed:
+        fill_value = parsed["gdal_no_data"]
+    elif "_FillValue" in parsed:
+        fill_value = parsed["_FillValue"]
+    else:
+        fill_value = parsed["missing_value"]
+
+    # Encode _FillValue for xarray's FillValueCoder.
+    # Only _FillValue gets this encoding — the Zarr backend decodes it via
+    # FillValueCoder but passes missing_value through as-is, so
+    # missing_value must be a plain numeric value.
+    encoded = FillValueCoder.encode(fill_value, dtype)
+    attrs["_FillValue"] = encoded
+
+    if "missing_value" in parsed:
+        attrs["missing_value"] = (
+            fill_value.item() if hasattr(fill_value, "item") else fill_value
+        )
+
+    # Remove per-variable prefixed duplicates (e.g. swe#_FillValue, swe#missing_value)
+    # when they carry the same raw string as the top-level value
+    prefixed_to_remove = []
+    for attr_key in list(attrs.keys()):
+        if "#" not in attr_key:
+            continue
+        suffix = attr_key.split("#", 1)[1]
+        if suffix in _FILL_VALUE_KEYS and isinstance(attrs[attr_key], str):
+            prefixed_parsed = _parse_fill_value(attrs[attr_key], dtype)
+            if prefixed_parsed == fill_value or (
+                dtype.kind == "f" and np.isnan(prefixed_parsed) and np.isnan(fill_value)
+            ):
+                prefixed_to_remove.append(attr_key)
+    for key in prefixed_to_remove:
+        del attrs[key]
+
+    return attrs, fill_value
 
 
 def _get_compression(ifd: ImageFileDirectory, compression: int):
@@ -249,6 +399,9 @@ def _construct_manifest_array(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
     zdtype = parse_data_type(dtype, zarr_format=3)
+    attributes, fill_value = _consolidate_fill_value(attributes, dtype)
+    if fill_value is None:
+        fill_value = zdtype.default_scalar()
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=zdtype,
@@ -257,7 +410,7 @@ def _construct_manifest_array(
             "configuration": {"chunk_shape": chunks},
         },
         chunk_key_encoding={"name": "default"},
-        fill_value=zdtype.default_scalar(),
+        fill_value=fill_value,
         codecs=codecs,
         attributes=attributes,
         dimension_names=dimension_names,
