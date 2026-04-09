@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 import rioxarray
 import xarray as xr
+from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import LocalStore
-from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 

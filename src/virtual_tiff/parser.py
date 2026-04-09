@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
 
 import numpy as np
 from async_tiff import TIFF
+from obspec_utils.registry import ObjectStoreRegistry
 from virtualizarr.manifests import (
     ChunkManifest,
     ManifestArray,
     ManifestGroup,
     ManifestStore,
 )
-from virtualizarr.registry import ObjectStoreRegistry
 from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
 from zarr.core.metadata.v3 import ArrayV3Metadata
