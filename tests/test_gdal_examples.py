@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import pytest
+from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import LocalStore
 from packaging.version import Version
 from rioxarray import __version__ as _rioxarray_version
 from virtualizarr import open_virtual_dataset
-from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 

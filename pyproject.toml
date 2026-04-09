@@ -27,6 +27,7 @@ classifiers = [
 
 dependencies = [
     "obstore",
+    "obspec-utils",
     "async_tiff>=0.4.0",
     "virtualizarr>=2.0",
     "imagecodecs",
@@ -51,7 +52,6 @@ dev = [
   "s3fs",
   "scipy",
   "earthaccess",
-  "obspec-utils[aiohttp]",
   # docs
   "mkdocs-material[imaging]>=9.6.14",
   "mkdocs>=1.6.1",

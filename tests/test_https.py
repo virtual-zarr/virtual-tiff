@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 
+from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import HTTPStore
-from virtualizarr.registry import ObjectStoreRegistry
 
 from .conftest import requires_network, rioxarray_comparison
 

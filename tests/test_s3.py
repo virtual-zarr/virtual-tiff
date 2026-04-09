@@ -2,8 +2,8 @@ import os
 
 import pytest
 import xarray as xr
+from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import S3Store
-from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 

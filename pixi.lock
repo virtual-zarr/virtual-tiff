@@ -7878,12 +7878,13 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: virtual-tiff
-  version: 0.3.2.dev3+g68e19c3a8.d20260409
-  sha256: 63117e8718b5266f26fe0ec7ffd7d28566afac363973d928c817d2d8601529c7
+  version: 0.3.2.dev8+g25303b195.d20260409
+  sha256: d86cf0cd4b59ea2b230c5b9a481af8e55a290412d557f63d00a09a5e2d57bc8c
   requires_dist:
   - async-tiff>=0.4.0
   - imagecodecs
   - imagecodecs-numcodecs
+  - obspec-utils
   - obstore
   - virtualizarr>=2.0
   - zarr
