@@ -16,7 +16,6 @@ from virtual_tiff.imagecodecs import (
     ZstdCodec,
 )
 
-ENDIAN = {b"MM": "big", b"II": "little"}
 COMPRESSORS = {
     1: None,
     8: Zlib,

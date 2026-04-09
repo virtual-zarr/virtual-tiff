@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
 
 import numpy as np
 from async_tiff import TIFF
+from async_tiff.enums import Endianness
 from obspec_utils.registry import ObjectStoreRegistry
 from virtualizarr.manifests import (
     ChunkManifest,
@@ -20,7 +21,7 @@ from zarr.core.sync import sync
 from zarr.dtype import parse_data_type
 
 from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
-from virtual_tiff.constants import COMPRESSORS, ENDIAN, GEO_KEYS, SAMPLE_DTYPES
+from virtual_tiff.constants import COMPRESSORS, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
     check_no_partial_strips,
@@ -40,6 +41,10 @@ GDAL_METADATA_TAG = 42112
 GDAL_NODATA_TAG = 42113
 ZSTD_LEVEL_TAG = "65564"
 DEFAULT_ZSTD_LEVEL = 9
+_ENDIANNESS_TO_STR = {
+    Endianness.LittleEndian: "little",
+    Endianness.BigEndian: "big",
+}
 
 
 _MSVC_INF_MAP = {
@@ -424,7 +429,6 @@ def _construct_manifest_group(
     store: ObjectStore,
     path: str,
     *,
-    endian: str,
     ifd: int | None = None,
     ifd_layout: Literal["flat", "nested"] = "flat",
 ) -> ManifestGroup:
@@ -433,7 +437,6 @@ def _construct_manifest_group(
     Args:
         store: Object store for reading the TIFF
         path: Full URL path to the TIFF file
-        endian: Byte order ('little' or 'big')
         ifd: Specific IFD index to process, or None for all IFDs
         ifd_layout: How to organize IFDs - 'flat' for single group, 'nested' for group per IFD
 
@@ -442,6 +445,7 @@ def _construct_manifest_group(
     """
     # TODO: Make an async approach
     tiff = sync(_open_tiff(store=store, path=path))
+    endian = _ENDIANNESS_TO_STR[tiff.endianness]
 
     # Build manifest arrays from selected IFDs
     manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
@@ -549,7 +553,6 @@ class VirtualTIFF:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         store, path_in_store = registry.resolve(url)
-        endian = ENDIAN[store.get_range(path_in_store, start=0, end=2).to_bytes()]
         async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
@@ -557,7 +560,6 @@ class VirtualTIFF:
             store=async_tiff_store,
             path=path_in_store,
             ifd=self._ifd,
-            endian=endian,
             ifd_layout=self.ifd_layout,
         )
         # Convert to a manifest store

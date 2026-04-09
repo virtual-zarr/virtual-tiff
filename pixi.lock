@@ -1281,6 +1281,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/4b/195ac84cc8f6077b4f0f421e8daee21b7f1bd88cb7716414234379fe68ec/numcodecs-0.16.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/bb/69/96feeac84ce0b871567225c78515f3b557c023e72ed9b4f1833f3662bd6b/obspec-0.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/47/9f/34290d64f131ff2d53d698ded79de5226a8b2b01352d99fc7f8a5f5c9b8e/obspec_utils-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f1/d5/9b38c4860187885a7b37a85f5083cdd24afe98c4511985c74bf22c88bfdf/obstore-0.9.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/90/96/04b8e52da071d28f5e21a805b19cb9390aa17a47462ac87f5e2696b9566d/paginate-0.5.7-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7c/2f/f91e4eee21585ff548e83358332d5632ee49f6b2dcd96cb5dca4e0468951/pandas_stubs-3.0.0.260204-py3-none-any.whl
@@ -1469,6 +1470,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/85/1ac101a40ead81eaa1c7dc49a8827a30e2e436211b43ebdc63c590eb1347/numcodecs-0.16.5-cp311-cp311-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/bb/69/96feeac84ce0b871567225c78515f3b557c023e72ed9b4f1833f3662bd6b/obspec-0.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/47/9f/34290d64f131ff2d53d698ded79de5226a8b2b01352d99fc7f8a5f5c9b8e/obspec_utils-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bb/12/fac0b4d1ef1dc1878d9851bdd4088057a041c3c31e16e44a4f8864533e58/obstore-0.9.0-cp311-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/90/96/04b8e52da071d28f5e21a805b19cb9390aa17a47462ac87f5e2696b9566d/paginate-0.5.7-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7c/2f/f91e4eee21585ff548e83358332d5632ee49f6b2dcd96cb5dca4e0468951/pandas_stubs-3.0.0.260204-py3-none-any.whl
@@ -1657,6 +1659,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0e/cc/0d97ef55dda48cb0f93d7b92d761208e7a99bd2eea6b0e859426e6a99a21/numcodecs-0.16.5-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/bb/69/96feeac84ce0b871567225c78515f3b557c023e72ed9b4f1833f3662bd6b/obspec-0.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/47/9f/34290d64f131ff2d53d698ded79de5226a8b2b01352d99fc7f8a5f5c9b8e/obspec_utils-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cb/67/229861ae7e1fa3b29493fa96b644d16a0410fc33b5b59de119ad0492c4d6/obstore-0.9.0-cp311-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/90/96/04b8e52da071d28f5e21a805b19cb9390aa17a47462ac87f5e2696b9566d/paginate-0.5.7-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7c/2f/f91e4eee21585ff548e83358332d5632ee49f6b2dcd96cb5dca4e0468951/pandas_stubs-3.0.0.260204-py3-none-any.whl
@@ -7875,8 +7878,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: virtual-tiff
-  version: 0.2.2.dev18+g9a2a663af.d20260225
-  sha256: b4939fd6b7e437182fc37eb8ea5925fbde9eecfe33050120a35d701c799fb4c7
+  version: 0.3.2.dev3+g68e19c3a8.d20260409
+  sha256: 63117e8718b5266f26fe0ec7ffd7d28566afac363973d928c817d2d8601529c7
   requires_dist:
   - async-tiff>=0.4.0
   - imagecodecs
