@@ -6,11 +6,12 @@ numpy scalar types, edge cases (inf, nan, zero), and error paths.
 
 import base64
 import struct
+import warnings
 
 import numpy as np
 import pytest
 
-from virtual_tiff.parser import _parse_fill_value
+from virtual_tiff.parser import _consolidate_fill_value, _parse_fill_value
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
 
 # --- Roundtrip tests: encode then decode should recover the original value ---
@@ -257,3 +258,139 @@ class TestParseFillValue:
             assert np.isnan(result)
         else:
             np.testing.assert_equal(result, expected)
+
+
+# --- _consolidate_fill_value tests ---
+
+
+class TestConsolidateFillValue:
+    def test_no_fill_values_returns_none(self):
+        attrs = {"photometric_interpretation": 1}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("uint8"))
+        assert fill_value is None
+        assert result_attrs == {"photometric_interpretation": 1}
+
+    def test_gdal_no_data_only(self):
+        attrs = {"gdal_no_data": "-9999"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert fill_value == np.float32(-9999.0)
+        # _FillValue should be encoded
+        encoded = result_attrs["_FillValue"]
+        decoded = FillValueCoder.decode(encoded, np.dtype("float32"))
+        assert decoded == pytest.approx(-9999.0)
+
+    def test_fill_value_only(self):
+        attrs = {"_FillValue": "-9999"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert fill_value == np.float32(-9999.0)
+        encoded = result_attrs["_FillValue"]
+        decoded = FillValueCoder.decode(encoded, np.dtype("float32"))
+        assert decoded == pytest.approx(-9999.0)
+
+    def test_missing_value_only(self):
+        attrs = {"missing_value": "-9999"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert fill_value == np.float32(-9999.0)
+        # missing_value should be plain numeric, not base64
+        assert result_attrs["missing_value"] == -9999.0
+        assert isinstance(result_attrs["missing_value"], float)
+
+    def test_gdal_no_data_takes_priority(self):
+        """gdal_no_data is authoritative when all three are present."""
+        attrs = {
+            "gdal_no_data": "-9999",
+            "_FillValue": "-9999",
+            "missing_value": "-9999",
+        }
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert fill_value == np.float32(-9999.0)
+
+    def test_fill_value_over_missing_value(self):
+        """_FillValue takes priority over missing_value when no gdal_no_data."""
+        attrs = {"_FillValue": "-9999", "missing_value": "-9999"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert fill_value == np.float32(-9999.0)
+
+    def test_conflicting_values_warns(self):
+        attrs = {"gdal_no_data": "-9999", "_FillValue": "-8888"}
+        with pytest.warns(match="Conflicting fill values found"):
+            _consolidate_fill_value(attrs, np.dtype("float32"))
+
+    def test_conflicting_values_uses_gdal_no_data(self):
+        attrs = {"gdal_no_data": "-9999", "_FillValue": "-8888"}
+        with pytest.warns(match="Conflicting fill values"):
+            result_attrs, fill_value = _consolidate_fill_value(
+                attrs, np.dtype("float32")
+            )
+        assert fill_value == np.float32(-9999.0)
+
+    def test_consistent_nan_no_warning(self):
+        """Matching NaN values across sources should not warn."""
+        attrs = {"gdal_no_data": "nan", "_FillValue": "nan"}
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            _consolidate_fill_value(attrs, np.dtype("float64"))
+
+    def test_missing_value_encoded_as_plain_numeric(self):
+        """missing_value must be a plain Python numeric, not base64."""
+        attrs = {"gdal_no_data": "-9999", "missing_value": "-9999"}
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        mv = result_attrs["missing_value"]
+        assert isinstance(mv, float)
+        assert mv == -9999.0
+
+    def test_fill_value_encoded_as_base64(self):
+        """_FillValue must be base64-encoded for float dtypes."""
+        attrs = {"gdal_no_data": "-9999"}
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        fv = result_attrs["_FillValue"]
+        assert isinstance(fv, str)
+        decoded = FillValueCoder.decode(fv, np.dtype("float32"))
+        assert decoded == pytest.approx(-9999.0)
+
+    def test_integer_fill_value_encoding(self):
+        """For integer dtypes, _FillValue should be a plain int."""
+        attrs = {"gdal_no_data": "255"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("uint8"))
+        assert fill_value == np.uint8(255)
+        assert result_attrs["_FillValue"] == 255
+        assert isinstance(result_attrs["_FillValue"], int)
+
+    def test_prefixed_duplicates_removed(self):
+        attrs = {
+            "gdal_no_data": "-9999",
+            "_FillValue": "-9999",
+            "missing_value": "-9999",
+            "swe#_FillValue": "-9999",
+            "swe#missing_value": "-9999",
+        }
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert "swe#_FillValue" not in result_attrs
+        assert "swe#missing_value" not in result_attrs
+
+    def test_prefixed_duplicates_kept_when_different(self):
+        attrs = {
+            "gdal_no_data": "-9999",
+            "swe#_FillValue": "-8888",
+        }
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert "swe#_FillValue" in result_attrs
+        assert result_attrs["swe#_FillValue"] == "-8888"
+
+    def test_gdal_no_data_left_as_string(self):
+        """gdal_no_data should remain as the original string."""
+        attrs = {"gdal_no_data": "-9999"}
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert result_attrs["gdal_no_data"] == "-9999"
+
+    def test_non_string_attrs_ignored(self):
+        """Non-string fill value attrs should be left untouched."""
+        attrs = {"_FillValue": 42.0, "gdal_no_data": "-9999"}
+        result_attrs, fill_value = _consolidate_fill_value(attrs, np.dtype("float32"))
+        # Only gdal_no_data (string) is parsed; _FillValue (float) is overwritten
+        assert fill_value == np.float32(-9999.0)
+
+    def test_attrs_dict_is_modified_in_place(self):
+        attrs = {"gdal_no_data": "-9999"}
+        result_attrs, _ = _consolidate_fill_value(attrs, np.dtype("float32"))
+        assert result_attrs is attrs
