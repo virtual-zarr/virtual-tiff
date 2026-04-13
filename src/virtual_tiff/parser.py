@@ -30,16 +30,22 @@ from virtual_tiff.utils import (
 )
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
 
+try:
+    from async_geotiff import GeoTIFF as AsyncGeoTIFF
+
+    HAS_ASYNC_GEOTIFF = True
+except ImportError:
+    HAS_ASYNC_GEOTIFF = False
+
 if TYPE_CHECKING:
-    from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
+    from async_geotiff import GeoTIFF as AsyncGeoTIFF
+    from async_tiff import GeoKeyDirectory, ImageFileDirectory
     from obstore.store import (
         ObjectStore,
     )
 
 
-GDAL_METADATA_TAG = 42112
-GDAL_NODATA_TAG = 42113
-ZSTD_LEVEL_TAG = "65564"
+ZSTD_LEVEL_TAG = 65564
 DEFAULT_ZSTD_LEVEL = 9
 _ENDIANNESS_TO_STR = {
     Endianness.LittleEndian: "little",
@@ -287,17 +293,33 @@ def _get_codecs(
 def _parse_geo_key_directory(geo_key_directory: GeoKeyDirectory) -> dict[str, Any]:
     attrs = {}
     for key in GEO_KEYS:
-        if value := getattr(geo_key_directory, key) is not None:
+        if (value := getattr(geo_key_directory, key)) is not None:
             attrs[key] = value
     return attrs
 
 
-def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
+def _get_attributes(
+    ifd: ImageFileDirectory, geotiff: AsyncGeoTIFF | None = None
+) -> dict[str, Any]:
     attrs = {}
-    if ifd.geo_key_directory:
+    if geotiff is not None:
+        try:
+            attrs["crs_wkt"] = geotiff.crs.to_wkt()
+            attrs["transform"] = list(geotiff.transform)
+        except Exception:
+            # async-geotiff's exception surface isn't stable across versions; catch broadly.
+            # Fall back to raw GeoKey attrs and warn the user.
+            warnings.warn(
+                "async-geotiff could not parse the CRS or transform (e.g. user-defined, "
+                "incomplete, or otherwise invalid GeoKeyDirectory). "
+                "Falling back to raw GeoKey attributes.",
+                UserWarning,
+                stacklevel=2,
+            )
+            if ifd.geo_key_directory:
+                attrs = _parse_geo_key_directory(ifd.geo_key_directory)
+    elif ifd.geo_key_directory:
         attrs = _parse_geo_key_directory(ifd.geo_key_directory)
-    else:
-        attrs = {}
     extra_keys = [
         "model_pixel_scale",
         "model_tiepoint",
@@ -354,12 +376,37 @@ def _construct_chunk_manifest(
     )
 
 
-async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
-    return await TIFF.open(path, store=store)
+async def _open_tiff(*, path: str, store: ObjectStore) -> AsyncGeoTIFF | TIFF:
+    async_tiff_store = convert_obstore_to_async_tiff_store(store)
+    tiff = await TIFF.open(path, store=async_tiff_store)
+    if tiff.ifds[0].geo_key_directory is not None:
+        if HAS_ASYNC_GEOTIFF:
+            try:
+                return AsyncGeoTIFF(tiff)
+            except Exception:
+                warnings.warn(
+                    "async-geotiff could not parse this GeoTIFF; falling back to basic TIFF "
+                    "parsing. Geospatial attributes may be incomplete.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        else:
+            warnings.warn(
+                "This file contains GeoTIFF metadata (CRS, transform) but `async-geotiff` "
+                "is not installed. Geospatial attributes will be incomplete. "
+                "Install it with: pip install virtual-tiff[geotiff]",
+                UserWarning,
+                stacklevel=2,
+            )
+    return tiff
 
 
 def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, url: str, endian: str
+    *,
+    ifd: ImageFileDirectory,
+    url: str,
+    endian: str,
+    geotiff: AsyncGeoTIFF | None = None,
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
@@ -398,7 +445,7 @@ def _construct_manifest_array(
         url=url, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
     codecs = _get_codecs(ifd, shape=shape, chunks=chunks, dtype=dtype, endian=endian)
-    attributes = _get_attributes(ifd)
+    attributes = _get_attributes(ifd, geotiff=geotiff)
     if nested := attributes.get("number_of_nested_grids"):
         raise NotImplementedError(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
@@ -445,7 +492,12 @@ def _construct_manifest_group(
     """
     # TODO: Make an async approach
     tiff = sync(_open_tiff(store=store, path=path))
-    endian = _ENDIANNESS_TO_STR[tiff.endianness]
+    # async-geotiff exposes no public accessor for the underlying TIFF object or its
+    # endianness. _tiff is a private attribute; revisit if a public API is added upstream.
+    underlying_tiff = (
+        tiff._tiff if (HAS_ASYNC_GEOTIFF and isinstance(tiff, AsyncGeoTIFF)) else tiff
+    )
+    endian = _ENDIANNESS_TO_STR[underlying_tiff.endianness]
 
     # Build manifest arrays from selected IFDs
     manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
@@ -463,7 +515,7 @@ def _construct_manifest_group(
 
 
 def _build_manifest_arrays(
-    tiff: TIFF,
+    tiff: AsyncGeoTIFF | TIFF,
     url: str,
     endian: str,
     ifd_index: int | None,
@@ -471,8 +523,8 @@ def _build_manifest_arrays(
     """Build manifest arrays from TIFF IFDs.
 
     Args:
-        tiff: Opened TIFF file
-        path: Full URL path to the TIFF file
+        tiff: Opened TIFF or GeoTIFF file
+        url: Full URL path to the TIFF file
         endian: Byte order
         ifd_index: Specific IFD to process, or None for all
 
@@ -481,16 +533,23 @@ def _build_manifest_arrays(
     """
     manifest_arrays = {}
 
+    if HAS_ASYNC_GEOTIFF and isinstance(tiff, AsyncGeoTIFF):
+        geotiff = tiff
+        # async-geotiff exposes no public API to iterate image IFDs directly.
+        # _primary_ifd and Overview._ifd are private; revisit if a public API is added upstream.
+        ifds = [geotiff._primary_ifd, *[ovr._ifd for ovr in geotiff.overviews]]
+    else:
+        geotiff = None
+        ifds = tiff.ifds
+
     if ifd_index is not None:
-        # Process single specified IFD
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index], url=url, endian=endian
+            ifd=ifds[ifd_index], url=url, endian=endian, geotiff=geotiff
         )
     else:
-        # Process all IFDs
-        for idx, ifd in enumerate(tiff.ifds):
+        for idx, ifd in enumerate(ifds):
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd, url=url, endian=endian
+                ifd=ifd, url=url, endian=endian, geotiff=geotiff
             )
 
     return manifest_arrays
@@ -553,11 +612,10 @@ class VirtualTIFF:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         store, path_in_store = registry.resolve(url)
-        async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
             url,
-            store=async_tiff_store,
+            store=store,
             path=path_in_store,
             ifd=self._ifd,
             ifd_layout=self.ifd_layout,

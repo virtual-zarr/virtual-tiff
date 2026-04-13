@@ -28,12 +28,15 @@ classifiers = [
 dependencies = [
     "obstore",
     "obspec-utils",
-    "async_tiff>=0.4.0",
+    "async_tiff>=0.7.0",
     "virtualizarr>=2.0",
     "imagecodecs",
     "imagecodecs-numcodecs",
     "zarr",
 ]
+
+[project.optional-dependencies]
+geotiff = ["async-geotiff>=0.4.0"]
 
 # Dependency sets under dependencies-groups are NOT available via PyPI
 [dependency-groups]
@@ -85,7 +88,7 @@ xarray = "==2025.6.0"
 
 [tool.pixi.feature.minimum-versions.pypi-dependencies]
 virtualizarr = "==2.0.0"
-async_tiff = "==0.4.0"
+async_tiff = "==0.7.0"
 
 # Define a feature set for latest versions
 [tool.pixi.feature.latest-versions.dependencies]
@@ -94,6 +97,10 @@ xarray = "*"
 [tool.pixi.feature.latest-versions.pypi-dependencies]
 virtualizarr = "*"
 async_tiff = "*"
+
+# Define a feature set with async-geotiff
+[tool.pixi.feature.geotiff.pypi-dependencies]
+async_geotiff = ">=0.4.0"
 
 # Define commands to run within the test environments
 [tool.pixi.feature.test.tasks]
@@ -115,6 +122,7 @@ readthedocs = "rm -rf $READTHEDOCS_OUTPUT/html && cp -r site $READTHEDOCS_OUTPUT
 docs = ["dev", "docs"]
 test-min-versions = ["dev", "test", "minimum-versions", "py311"] # test minimum versions with python 3.11
 test = ["dev", "test", "latest-versions", "py314"] # test latest versions with python 3.14
+test-geotiff = ["dev", "test", "latest-versions", "geotiff", "py314"] # test with async-geotiff installed
 
 [tool.pytest.ini_options]
 filterwarnings = [
