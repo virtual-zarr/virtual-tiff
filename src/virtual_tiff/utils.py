@@ -40,9 +40,7 @@ def convert_obstore_to_async_tiff_store(store: ObjectStore) -> AsyncTiffObjectSt
     We need to use an async_tiff ObjectStore instance rather than an ObjectStore instance for opening and parsing the TIFF file,
     so that the store isn't passed through Python.
 
-    TODO: async-tiff >= 0.7.0 accepts ObspecInput (obstore) directly. Consider deprecating
-    this conversion once the minimum async-tiff version is established and the performance
-    trade-off for metadata-only reads is confirmed to be acceptable.
+    TODO: async-tiff >= 0.7.0 accepts ObspecInput (obstore) directly. Could we depreciate this bit?
     """
 
     newargs = store.__getnewargs_ex__()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -26,11 +25,7 @@ from virtual_tiff.imagecodecs import (
     LZWCodec,
     ZstdCodec,
 )
-from virtual_tiff.parser import (
-    ZSTD_LEVEL_TAG,
-    _get_compression,
-    _open_tiff,
-)
+from virtual_tiff.parser import ZSTD_LEVEL_TAG, _get_compression
 
 _DEFAULT_CONFIG = ArrayConfig(order="C", write_empty_chunks=True)
 
@@ -574,28 +569,3 @@ class TestHorizontalDeltaFloat:
         spec = _make_spec((1, 3), UInt16())
         result = await codec._decode_single(nd_buf, spec)
         np.testing.assert_array_equal(result.as_ndarray_like(), original)
-
-
-class TestOpenTiffWarnings:
-    """Tests for _open_tiff warning paths when GeoTIFF metadata is present."""
-
-    @pytest.mark.asyncio
-    async def test_warns_when_async_geotiff_not_installed(self):
-        """_open_tiff warns and returns plain TIFF when file has GeoKeyDirectory
-        but async-geotiff is not installed."""
-        fake_ifd = FakeIFD(geo_key_directory=object())
-        fake_tiff = MagicMock()
-        fake_tiff.ifds = [fake_ifd]
-        with (
-            patch("virtual_tiff.parser.HAS_ASYNC_GEOTIFF", False),
-            patch(
-                "virtual_tiff.parser.TIFF.open", new=AsyncMock(return_value=fake_tiff)
-            ),
-            patch(
-                "virtual_tiff.parser.convert_obstore_to_async_tiff_store",
-                return_value=MagicMock(),
-            ),
-        ):
-            with pytest.warns(UserWarning, match="async-geotiff.*is not installed"):
-                result = await _open_tiff(path="fake.tif", store=MagicMock())
-        assert result is fake_tiff

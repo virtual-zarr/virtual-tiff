@@ -307,14 +307,11 @@ def _get_attributes(
             attrs["crs_wkt"] = geotiff.crs.to_wkt()
             attrs["transform"] = list(geotiff.transform)
         except Exception:
-            # async-geotiff's exception surface isn't stable across versions; catch broadly.
             # Fall back to raw GeoKey attrs and warn the user.
             warnings.warn(
-                "async-geotiff could not parse the CRS or transform (e.g. user-defined, "
-                "incomplete, or otherwise invalid GeoKeyDirectory). "
-                "Falling back to raw GeoKey attributes.",
+                "async-geotiff could not parse the CRS or transform, falling back to raw GeoKey attrs.",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=2,  # is this the right lvl?
             )
             if ifd.geo_key_directory:
                 attrs = _parse_geo_key_directory(ifd.geo_key_directory)
@@ -385,7 +382,7 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> AsyncGeoTIFF | TIFF:
                 return AsyncGeoTIFF(tiff)
             except Exception:
                 warnings.warn(
-                    "async-geotiff could not parse this GeoTIFF; falling back to basic TIFF "
+                    "async-geotiff could not parse this GeoTIFF; falling back to async-tiff "
                     "parsing. Geospatial attributes may be incomplete.",
                     UserWarning,
                     stacklevel=2,
@@ -393,8 +390,7 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> AsyncGeoTIFF | TIFF:
         else:
             warnings.warn(
                 "This file contains GeoTIFF metadata (CRS, transform) but `async-geotiff` "
-                "is not installed. Geospatial attributes will be incomplete. "
-                "Install it with: pip install virtual-tiff[geotiff]",
+                "is not installed. Please install it with: pip install virtual-tiff[geotiff]",
                 UserWarning,
                 stacklevel=2,
             )
@@ -492,8 +488,7 @@ def _construct_manifest_group(
     """
     # TODO: Make an async approach
     tiff = sync(_open_tiff(store=store, path=path))
-    # async-geotiff exposes no public accessor for the underlying TIFF object or its
-    # endianness. _tiff is a private attribute; revisit if a public API is added upstream.
+    # endianness. _tiff is a private attribute; revisit if a public API is added later.
     underlying_tiff = (
         tiff._tiff if (HAS_ASYNC_GEOTIFF and isinstance(tiff, AsyncGeoTIFF)) else tiff
     )
