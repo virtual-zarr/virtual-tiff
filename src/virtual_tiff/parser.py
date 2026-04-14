@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+import importlib.util
 import math
 import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
@@ -16,7 +18,6 @@ from virtualizarr.manifests import (
 )
 from zarr.abc.codec import BaseCodec
 from zarr.codecs import BytesCodec, TransposeCodec
-from zarr.core.chunk_grids import _is_rectilinear_chunks as _is_nested_sequence
 from zarr.core.metadata.v3 import ArrayV3Metadata
 from zarr.core.sync import sync
 from zarr.dtype import parse_data_type
@@ -25,13 +26,30 @@ from virtual_tiff.codecs import ChunkyCodec, HorizontalDeltaCodec
 from virtual_tiff.constants import COMPRESSORS, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
+    check_no_partial_strips,
     convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
+from virtual_tiff.vendor.zarr.chunk_grids import _is_rectilinear_chunks
+
+
+@functools.cache
+def _has_unified_chunk_grid() -> bool:
+    """Check if zarr has the unified ChunkGrid with is_regular support.
+
+    Defers the actual import so zarr stays lazy at module load time.
+    """
+    if importlib.util.find_spec("zarr.core.chunk_grids") is None:
+        return False
+    from zarr.core.chunk_grids import ChunkGrid
+
+    return hasattr(ChunkGrid, "is_regular")
+
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
+    from obspec import GetRange
     from obstore.store import (
         ObjectStore,
     )
@@ -274,7 +292,7 @@ def _decompress_strip(compression: int, data: bytes) -> int:
 
 def _fetch_last_strip(
     ifd: ImageFileDirectory,
-    object_store: ObjectStore,
+    object_store: GetRange,
     store_path: str,
 ) -> bytes | None:
     """Fetch the last strip's compressed bytes if needed for padding detection.
@@ -325,9 +343,17 @@ def _is_last_strip_padded(
         # Uncompressed: compare byte counts directly
         return byte_counts[-1] >= full_strip_bytes
 
-    # Compressed: decompress the last strip to check its actual size
+    # Compressed: decompress the last strip to check its actual size.
+    # Some codecs (e.g. JPEG with external quantization tables) cannot
+    # decompress a strip independently.
     if last_strip_data is not None:
-        decompressed_size = _decompress_strip(ifd.compression, last_strip_data)
+        try:
+            decompressed_size = _decompress_strip(ifd.compression, last_strip_data)
+        except Exception as e:
+            raise NotImplementedError(
+                f"Cannot determine last strip padding for compression tag "
+                f"{ifd.compression}: {e}"
+            ) from e
         return decompressed_size >= full_strip_bytes
 
     return False
@@ -343,15 +369,20 @@ def _get_chunks_from_strips(
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
     elif (remainder := image_height % rows_per_strip) > 0:
-        if not _is_last_strip_padded(ifd, rows_per_strip, last_strip_data):
-            # Last strip is unpadded — use rectilinear grid with actual sizes
-            quotient = image_height // rows_per_strip
-            chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
-        else:
+        if _is_last_strip_padded(ifd, rows_per_strip, last_strip_data):
             # Last strip is padded — use regular grid. The codec will receive
             # full-strip-sized buffers and zarr's boundary clipping handles
             # the data trimming.
             chunks = (rows_per_strip, ifd.image_width)
+        elif _has_unified_chunk_grid():
+            # Last strip is unpadded — use rectilinear grid with actual sizes
+            quotient = image_height // rows_per_strip
+            chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
+        else:
+            # No rectilinear support and unpadded partial strip
+            check_no_partial_strips(
+                image_height=image_height, rows_per_strip=rows_per_strip
+            )
     else:
         chunks = (rows_per_strip, ifd.image_width)
     offsets = ifd.strip_offsets
@@ -424,7 +455,7 @@ def _add_dim_for_samples_per_pixel(
     if ifd.planar_configuration == 2:
         # For PlanarConfiguration = 2, the offsets for each component plane are stored
         # separately. Each plane has its own set of offsets, ordered by component.
-        if _is_nested_sequence(chunks):
+        if _is_rectilinear_chunks(chunks):
             assert isinstance(chunks, list)
             chunks = [[1] * sample_dim_length] + chunks
         else:
@@ -432,7 +463,7 @@ def _add_dim_for_samples_per_pixel(
             chunks = (1,) + chunks
     else:
         # Check if rectilinear or regular chunk grid
-        if _is_nested_sequence(chunks):
+        if _is_rectilinear_chunks(chunks):
             assert isinstance(chunks, list)
             chunks = [[sample_dim_length]] + chunks
         else:
@@ -566,8 +597,8 @@ def _construct_manifest_group(
     """Construct a ManifestGroup from TIFF IFDs.
 
     Args:
-        store: Object store for reading the TIFF
-        path: Full URL path to the TIFF file
+        store: obstore ObjectStore for reading the TIFF
+        path: Path within the store to the TIFF file
         ifd: Specific IFD index to process, or None for all IFDs
         ifd_layout: How to organize IFDs - 'flat' for single group, 'nested' for group per IFD
 
@@ -575,7 +606,8 @@ def _construct_manifest_group(
         ManifestGroup containing the processed TIFF data
     """
     # TODO: Make an async approach
-    tiff = sync(_open_tiff(store=store, path=path))
+    async_tiff_store = convert_obstore_to_async_tiff_store(store)
+    tiff = sync(_open_tiff(store=async_tiff_store, path=path))
     endian = _ENDIANNESS_TO_STR[tiff.endianness]
 
     # Build manifest arrays from selected IFDs
@@ -694,11 +726,10 @@ class VirtualTIFF:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         store, path_in_store = registry.resolve(url)
-        async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
             url,
-            store=async_tiff_store,
+            store=store,
             path=path_in_store,
             ifd=self._ifd,
             ifd_layout=self.ifd_layout,

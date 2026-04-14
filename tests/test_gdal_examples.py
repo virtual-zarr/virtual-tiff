@@ -8,6 +8,7 @@ from rioxarray import __version__ as _rioxarray_version
 from virtualizarr import open_virtual_dataset
 
 from virtual_tiff import VirtualTIFF
+from virtual_tiff.parser import _has_unified_chunk_grid
 
 from .conftest import (
     gdal_examples,
@@ -45,7 +46,13 @@ def run_gdal_test(rel_path, mask_and_scale=True):
         if filename in xfail_nodata_values:
             pytest.xfail("Per-band NODATA_VALUES tag not parsed by virtual-tiff")
     filepath = f"{resolve_folder('tests/data/gdal')}/{rel_path}"
-    if filename in unknown_compressor:
+    if not _has_unified_chunk_grid() and filename in partial_chunks:
+        match_error(
+            filepath,
+            (ValueError, NotImplementedError),
+            r"(Zarr's default chunk grid expects all chunks to be equal size|Cannot determine last strip padding)",
+        )
+    elif filename in unknown_compressor:
         match_error(
             filepath,
             ValueError,
@@ -271,6 +278,43 @@ xfail_reshape = [
     "contig_tiled.tif",
     "separate_tiled.tif",
     "stripbytecounts_count_not_same_as_stripoffsets_count.tif",
+]
+partial_chunks = [
+    # Files with partial (unpadded) last strips that require rectilinear
+    # chunk grids. Without rectilinear support, these raise ValueError.
+    "isis3_geotiff.tif",
+    "bug_6526_input.tif",
+    "rgbsmall_uint16_LZW_predictor_2.tif",
+    "stefan_full_greyalpha_uint16_LZW_predictor_2.tif",
+    "pyramid_shaded_ref.tif",
+    "melb-small.tif",
+    "utmsmall.tif",
+    "n43.tif",
+    "test_gdal2tiles_exclude_transparent.tif",
+    "unstable_rpc_with_dem_source.tif",
+    "warp_52_dem.tif",
+    "rgbsmall_uint32_LZW_predictor_2.tif",
+    "rgbsmall_uint64_LZW_predictor_2.tif",
+    "utilities_utmsmall.tif",
+    "stefan_full_rgba_LZW_predictor_2.tif",
+    "dstsize_larger_than_source.tif",
+    "test_gf.tif",
+    "vrtmisc16_tile2.tif",
+    "transformer_13_dem.tif",
+    "vrtmisc16_tile1.tif",
+    "stefan_full_rgba.tif",
+    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
+    "quad-lzw-old-style.tif",
+    # JPEG files with partial strips raise NotImplementedError
+    # because the last strip cannot be decompressed independently
+    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
+    "stefan_full_rgba_jpeg_contig.tif",
+    "stefan_full_rgba_jpeg_separate.tif",
+    "tif_jpeg_too_big_last_stripe.tif",
+    # Also in byte_counts, but partial strips error fires first
+    "VH.tif",
+    "VV.tif",
+    "geog_arc_second.tif",
 ]
 xfail_alpha_masking = [
     # rioxarray masks via alpha band (ExtraSamples); virtual-tiff does not
