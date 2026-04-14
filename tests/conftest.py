@@ -6,8 +6,8 @@ import pytest
 import rioxarray
 import xarray as xr
 import zarr
+from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import LocalStore
-from virtualizarr.registry import ObjectStoreRegistry
 
 from virtual_tiff import VirtualTIFF
 
@@ -78,18 +78,26 @@ def geotiff_test_data_examples():
     return [str(f.relative_to(data_dir)) for f in tif_files]
 
 
-def loadable_dataset(filepath, registry):
+def loadable_dataset(filepath, registry, mask_and_scale=True):
     parser = VirtualTIFF(ifd=0)
     ms = parser(filepath, registry=registry)
-    return xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3).load()
+    return xr.open_dataset(
+        ms,
+        engine="zarr",
+        consolidated=False,
+        zarr_format=3,
+        mask_and_scale=mask_and_scale,
+    ).load()
 
 
-def rioxarray_comparison(filepath, registry: ObjectStoreRegistry = None):
+def rioxarray_comparison(
+    filepath, registry: ObjectStoreRegistry = None, mask_and_scale=True
+):
     if not registry:
         registry = ObjectStoreRegistry({filepath: LocalStore()})
-    ds = loadable_dataset(filepath, registry)
+    ds = loadable_dataset(filepath, registry, mask_and_scale=mask_and_scale)
     assert isinstance(ds, xr.Dataset)
-    expected = rioxarray.open_rasterio(filepath)
+    expected = rioxarray.open_rasterio(filepath, masked=mask_and_scale)
     filepath = urlparse(filepath).path
     if isinstance(expected, xr.DataArray):
         np.testing.assert_allclose(ds["0"].data.squeeze(), expected.data.squeeze())

@@ -1,7 +1,7 @@
 import os
 
 import obstore
-from virtualizarr.registry import ObjectStoreRegistry
+from obspec_utils.registry import ObjectStoreRegistry
 
 from .conftest import requires_network, rioxarray_comparison
 

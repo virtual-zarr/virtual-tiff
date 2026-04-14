@@ -23,7 +23,7 @@ You can use Virtual TIFF to load data directly:
 
 ```python
 import obstore
-from virtualizarr.registry import ObjectStoreRegistry
+from obspec_utils.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
 import xarray as xr
 
@@ -46,7 +46,7 @@ or create a virtual dataset:
 ```python
 import obstore
 from virtualizarr import open_virtual_dataset
-from virtualizarr.registry import ObjectStoreRegistry
+from obspec_utils.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
 
 # Configuration

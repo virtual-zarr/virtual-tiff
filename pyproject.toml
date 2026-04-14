@@ -27,6 +27,7 @@ classifiers = [
 
 dependencies = [
     "obstore",
+    "obspec-utils",
     "async_tiff>=0.4.0",
     "virtualizarr>=2.0",
     "imagecodecs",
@@ -100,7 +101,7 @@ rasterio = "*"
 lerc = "<4.1"  # 4.1 has dylib symbol conflict with imagecodecs' bundled libLerc
 
 [tool.pixi.feature.chunk-grid-ext.pypi-dependencies]
-zarr = { git = "https://github.com/maxrjones/zarr-python.git", branch = "poc/unified-chunk-grid" }
+zarr = { git = "https://github.com/zarr-developers/zarr-python.git", branch = "main" }
 virtualizarr = { git = "https://github.com/maxrjones/VirtualiZarr.git", branch = "poc/unified-chunk-grid" }
 xarray = { git = "https://github.com/maxrjones/xarray.git", branch = "poc/unified-zarr-chunk-grid" }
 async_tiff = "*"
