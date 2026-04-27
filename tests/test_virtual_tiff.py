@@ -93,6 +93,28 @@ def test_geotiff_test_data_load(rel_path, mask_and_scale):
     np.testing.assert_allclose(da.data, da_expected.data.squeeze())
 
 
+def test_geo_key_attributes_are_not_booleans():
+    """Regression test: geo key values must be their actual values, not booleans.
+
+    A walrus operator precedence bug previously caused _parse_geo_key_directory
+    to store True instead of the real attribute value (e.g. EPSG code 4326).
+    """
+    filepath = resolve_folder(
+        "tests/data/geotiff-test-data/rasterio_generated/fixtures/antimeridian.tif"
+    )
+    parser = VirtualTIFF(ifd=0)
+    registry = ObjectStoreRegistry({"file://": LocalStore()})
+    ms = parser(f"file://{filepath}", registry=registry)
+    ds = xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3)
+    attrs = ds["0"].attrs
+    # geographic_type should be the EPSG code, not True
+    assert attrs["geographic_type"] == 4326
+    assert attrs["model_type"] == 2
+    # model_pixel_scale should be a list of floats, not True
+    assert isinstance(attrs["model_pixel_scale"], list)
+    assert attrs["model_pixel_scale"] == [1.0, 1.0, 0.0]
+
+
 def test_local_store_with_prefix():
     data_dir = resolve_folder("tests/data/github").absolute()
     filepath = data_dir / "test_reference.tif"
