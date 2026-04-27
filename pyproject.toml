@@ -78,6 +78,7 @@ python = "3.14.*"
 [tool.pixi.feature.test.dependencies]
 rasterio = "*"
 rioxarray = "*"
+lerc = "<4.1"  # 4.1 has dylib symbol conflict with imagecodecs' bundled libLerc
 
 # Define a feature set for minimum versions
 [tool.pixi.feature.minimum-versions.dependencies]

@@ -27,7 +27,6 @@ from virtual_tiff.constants import COMPRESSORS, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
     check_no_partial_strips,
-    convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
@@ -605,9 +604,13 @@ def _construct_manifest_group(
     Returns:
         ManifestGroup containing the processed TIFF data
     """
-    # TODO: Make an async approach
-    async_tiff_store = convert_obstore_to_async_tiff_store(store)
-    tiff = sync(_open_tiff(store=async_tiff_store, path=path))
+    # TODO: Make an async approach.
+    # `async_tiff.TIFF.open` accepts any object implementing the obspec async
+    # read protocol (see async_tiff/python/tests/test_obspec.py), so we hand
+    # the obstore-or-wrapper through directly. Wrapping a Python store here
+    # is fine: TIFF reads issue range requests via the obspec protocol, which
+    # gives wrappers (caching, tracing) a chance to intercept.
+    tiff = sync(_open_tiff(store=store, path=path))
     endian = _ENDIANNESS_TO_STR[tiff.endianness]
 
     # Build manifest arrays from selected IFDs
