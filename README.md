@@ -2,20 +2,20 @@
 
 **Turn TIFF and COG archives into Zarr stores without copying any data.**
 
-Virtual TIFF allows you to create a Zarr store that you can persist with [Icechunk](https://icechunk.io/).
-There are four main benefits to this approach:
+Virtual TIFF emits a [VirtualiZarr](https://virtualizarr.readthedocs.io/)-compatible Zarr v3 store backed by byte-range references into the original TIFFs. Persist it with [Icechunk](https://icechunk.io/) and you've published a coherent datacube — readable in any language with a Zarr+Icechunk client — without copying any pixels.
 
-- You can curate views to your TIFF collection. Users get a coherent datacube without even knowing that the data is split across hundreds, thousands, or even millions of files. You can also chose which bands, overviews, etc. are exposed in your Zarr store.
-- You can use the virtual Zarr store in any language or application that understands Zarr and Icechunk.
-- You can provide fast access to non-cloud optimized TIFFs. The process of virtualization adapts regular GeoTIFFs into cloud-optimized Zarrs without data duplication.
-- The versioning functionality in Icechunk will warn users if the TIFFs have changed since you produced the virtual Zarr store and run your analysis, improving reproducibility.
+What this lets you do:
+
+- **Curate what's exposed.** Pick which bands, overviews, and AOIs land in the published store; consumers see one datacube, not hundreds of files.
+- **Detect source drift.** Icechunk records etags, so analyses can verify the source TIFFs haven't changed since the manifest was built.
+- **Open non-COG TIFFs without rewriting them.** Internally tiled TIFFs that aren't quite COG-compliant still get fast cloud-native access through the virtual store.
 
 ## When to use Virtual TIFF
 
 - You're building a **datacube product** over a TIFF/COG archive that should outlive any single Python session.
 - You need **non-Python clients** (zarrs, zarrita.js, zarr-layer) to read the archive without knowing it's TIFF underneath.
 - You want **Icechunk-versioned** access to the archive: snapshots, transactions, time-travel as new acquisitions land.
-- The archive is queried **many times**, and amortizing per-file data discovery across all those queries actually matters.
+- The archive is queried **many times**, and amortizing per-file IFD discovery across all those queries actually matters.
 - You want to expose **overviews** as a native Zarr multiscale group, so downstream tools (visualization, fast analytics) can use them directly.
 
 ## When *not* to use Virtual TIFF
@@ -70,6 +70,8 @@ The point of Virtual TIFF is that it's **not in the read path**. It runs once, w
               ▼
    decoded chunks via the Zarr codec pipeline
 ```
+
+Note the absence of virtual-tiff and async-tiff from the read-time path. They're build-time tools; once the manifest exists, consumers reach the source bytes through Icechunk alone.
 
 ## Quick start
 
