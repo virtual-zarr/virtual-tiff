@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "obstore",
     "obspec-utils",
-    "async_tiff>=0.4.0",
+    "async_tiff>=0.5.0",
     "virtualizarr>=2.0",
     "imagecodecs",
     "imagecodecs-numcodecs",
@@ -85,7 +85,7 @@ xarray = "==2025.6.0"
 
 [tool.pixi.feature.minimum-versions.pypi-dependencies]
 virtualizarr = "==2.0.0"
-async_tiff = "==0.4.0"
+async_tiff = "==0.5.0"
 
 # Define a feature set for latest versions
 [tool.pixi.feature.latest-versions.dependencies]

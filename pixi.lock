@@ -1230,7 +1230,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a1/7e/6815aab7d3a56610891c76ef79095677b8b5be6646aaf00f69b221765021/aiohttp-3.13.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/10/a1/510b0a7fadc6f43a6ce50152e69dbd86415240835868bb0bd9b5b88b1e06/aioitertools-0.13.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/76/641ae371508676492379f16e2fa48f4e2c11741bd63c48be4b12a6b09cba/aiosignal-1.4.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/32/a7/fa4e3a4175025f170e2da5dccc065a672e09b27955abfb897bfd654a78f0/async_tiff-0.4.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/21/4e/83e5d87b3c5f12061f4b77af4c382aa7580a93ebbc4d5616b3b2d76b46ef/async_tiff-0.5.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/77/f5/21d2de20e8b8b0408f0681956ca2c69f1320a3848ac50e6e7f39c6159675/babel-2.18.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0f/f0/35240571e1b67ffb19dafb29ab34150b6f59f93f717b041082cdb1bfceb1/backrefs-6.2-py311-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/64/fe72b409660b8da44a8763f9165d36650e41e4e591dd7d3ad708397496c7/botocore-1.42.55-py3-none-any.whl
@@ -1419,7 +1419,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/82/71/d5c31390d18d4f58115037c432b7e0348c60f6f53b727cad33172144a112/aiohttp-3.13.3-cp311-cp311-macosx_10_9_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/10/a1/510b0a7fadc6f43a6ce50152e69dbd86415240835868bb0bd9b5b88b1e06/aioitertools-0.13.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/76/641ae371508676492379f16e2fa48f4e2c11741bd63c48be4b12a6b09cba/aiosignal-1.4.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b8/b7/2bc5c343fe2d46230f7e13a5e73bd915513dffbf84059ec4f1bccb7c25b1/async_tiff-0.4.0-cp311-abi3-macosx_10_12_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/4b/ca/7e0880eb983de23e4c72a1f2c44a324f9b4e8515fa91b0e562e7b205fb1b/async_tiff-0.5.0-cp311-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/77/f5/21d2de20e8b8b0408f0681956ca2c69f1320a3848ac50e6e7f39c6159675/babel-2.18.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0f/f0/35240571e1b67ffb19dafb29ab34150b6f59f93f717b041082cdb1bfceb1/backrefs-6.2-py311-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/64/fe72b409660b8da44a8763f9165d36650e41e4e591dd7d3ad708397496c7/botocore-1.42.55-py3-none-any.whl
@@ -1608,7 +1608,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0e/c9/741f8ac91e14b1d2e7100690425a5b2b919a87a5075406582991fb7de920/aiohttp-3.13.3-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/10/a1/510b0a7fadc6f43a6ce50152e69dbd86415240835868bb0bd9b5b88b1e06/aioitertools-0.13.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/76/641ae371508676492379f16e2fa48f4e2c11741bd63c48be4b12a6b09cba/aiosignal-1.4.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/be/a1/b684c99f82732ca6d2d063c6bd2ff559b3aef5bf2109f07ecd5fb3ae5255/async_tiff-0.4.0-cp311-abi3-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/86/77/a17e1af76d91f16b091999257004057b920c4bc19434a4d637f7efc9d9c1/async_tiff-0.5.0-cp311-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/77/f5/21d2de20e8b8b0408f0681956ca2c69f1320a3848ac50e6e7f39c6159675/babel-2.18.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0f/f0/35240571e1b67ffb19dafb29ab34150b6f59f93f717b041082cdb1bfceb1/backrefs-6.2-py311-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/64/fe72b409660b8da44a8763f9165d36650e41e4e591dd7d3ad708397496c7/botocore-1.42.55-py3-none-any.whl
@@ -1893,24 +1893,24 @@ packages:
   - frozenlist>=1.1.0
   - typing-extensions>=4.2 ; python_full_version < '3.13'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/32/a7/fa4e3a4175025f170e2da5dccc065a672e09b27955abfb897bfd654a78f0/async_tiff-0.4.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/21/4e/83e5d87b3c5f12061f4b77af4c382aa7580a93ebbc4d5616b3b2d76b46ef/async_tiff-0.5.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   name: async-tiff
-  version: 0.4.0
-  sha256: ace297da354bf734373f6c1984a4805d58b9af294e2b56552589f69e6797f1a9
+  version: 0.5.0
+  sha256: 869e18f7e52def38eecccd2a98d9e784a5b49b9d087d0edf3ef719fff33f4091
   requires_dist:
   - obspec>=0.1.0
   requires_python: '>=3.10'
-- pypi: https://files.pythonhosted.org/packages/b8/b7/2bc5c343fe2d46230f7e13a5e73bd915513dffbf84059ec4f1bccb7c25b1/async_tiff-0.4.0-cp311-abi3-macosx_10_12_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/4b/ca/7e0880eb983de23e4c72a1f2c44a324f9b4e8515fa91b0e562e7b205fb1b/async_tiff-0.5.0-cp311-abi3-macosx_10_12_x86_64.whl
   name: async-tiff
-  version: 0.4.0
-  sha256: a66f6986423f03ee2791ba7ac6025032523a13245903aeeac520672de0f37962
+  version: 0.5.0
+  sha256: f383eb056c06002d8d04d9237c17f78789a7fb7889d9dba05f4e3de431377213
   requires_dist:
   - obspec>=0.1.0
   requires_python: '>=3.10'
-- pypi: https://files.pythonhosted.org/packages/be/a1/b684c99f82732ca6d2d063c6bd2ff559b3aef5bf2109f07ecd5fb3ae5255/async_tiff-0.4.0-cp311-abi3-macosx_11_0_arm64.whl
+- pypi: https://files.pythonhosted.org/packages/86/77/a17e1af76d91f16b091999257004057b920c4bc19434a4d637f7efc9d9c1/async_tiff-0.5.0-cp311-abi3-macosx_11_0_arm64.whl
   name: async-tiff
-  version: 0.4.0
-  sha256: 9446565de4a86a82f7e22e7ae09ce07aa10a3ffc69b9a334f2c32e89820e0b73
+  version: 0.5.0
+  sha256: 0f79b6a0344a3d4a8b871f671e624275a768be07754cc80bab2bbb0263c585e1
   requires_dist:
   - obspec>=0.1.0
   requires_python: '>=3.10'
@@ -7878,10 +7878,10 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: virtual-tiff
-  version: 0.3.2.dev8+g25303b195.d20260409
-  sha256: d86cf0cd4b59ea2b230c5b9a481af8e55a290412d557f63d00a09a5e2d57bc8c
+  version: 0.4.1.dev3+g429a328e3.d20260429
+  sha256: 364f2589c827d1f0b342de488a3f8d0f91b327c0e9ec74e4557d75a04c921ef7
   requires_dist:
-  - async-tiff>=0.4.0
+  - async-tiff>=0.5.0
   - imagecodecs
   - imagecodecs-numcodecs
   - obspec-utils
