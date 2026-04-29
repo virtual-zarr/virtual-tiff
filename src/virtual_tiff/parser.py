@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+import importlib.util
 import math
 import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Tuple
@@ -25,13 +27,28 @@ from virtual_tiff.constants import COMPRESSORS, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
     check_no_partial_strips,
-    convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
+from virtual_tiff.vendor.zarr.chunk_grids import _is_rectilinear_chunks
+
+
+@functools.cache
+def _has_unified_chunk_grid() -> bool:
+    """Check if zarr has the unified ChunkGrid with is_regular support.
+
+    Defers the actual import so zarr stays lazy at module load time.
+    """
+    if importlib.util.find_spec("zarr.core.chunk_grids") is None:
+        return False
+    from zarr.core.chunk_grids import ChunkGrid
+
+    return hasattr(ChunkGrid, "is_regular")
+
 
 if TYPE_CHECKING:
     from async_tiff import TIFF, GeoKeyDirectory, ImageFileDirectory
+    from obspec import GetRange
     from obstore.store import (
         ObjectStore,
     )
@@ -213,7 +230,7 @@ def _get_compression(ifd: ImageFileDirectory, compression: int):
 
 
 def _get_dtype(
-    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...]
+    sample_format: tuple[int, ...], bits_per_sample: tuple[int, ...], endian: str
 ) -> np.dtype:
     if not all(x == sample_format[0] for x in sample_format):
         raise ValueError(
@@ -229,7 +246,11 @@ def _get_dtype(
             raise NotImplementedError(
                 "Requires upstream fix; see https://github.com/virtual-zarr/virtual-tiff/issues/42."
             )
-        return np.dtype(dtype)
+        result = np.dtype(dtype)
+        if result.itemsize > 1:
+            byteorder: Literal[">", "<"] = ">" if endian == "big" else "<"
+            result = result.newbyteorder(byteorder)
+        return result
     except KeyError as e:
         raise ValueError(
             f"Unrecognized datatype, got sample_format = {sample_format} and bits_per_sample = {bits_per_sample}"
@@ -245,15 +266,124 @@ def _get_chunks_from_tiles(
     return chunks, offsets, byte_counts
 
 
+def _decompress_strip(compression: int, data: bytes) -> int:
+    """Decompress raw TIFF strip data and return the decompressed byte count."""
+    import lzma as _lzma
+    import zlib as _zlib
+
+    if compression in (8, 32946):  # Zlib/Deflate
+        return len(_zlib.decompress(data))
+    elif compression == 34925:  # LZMA
+        return len(_lzma.decompress(data))
+
+    codec_cls = COMPRESSORS.get(compression)
+    if codec_cls is None:
+        raise ValueError(f"Unknown compression tag: {compression}")
+
+    from zarr.registry import get_numcodec
+
+    numcodec = get_numcodec({"id": codec_cls.codec_name})
+    result = numcodec.decode(data)
+    if isinstance(result, np.ndarray):
+        return result.nbytes
+    return len(result)
+
+
+def _fetch_last_strip(
+    ifd: ImageFileDirectory,
+    object_store: GetRange,
+    store_path: str,
+) -> bytes | None:
+    """Fetch the last strip's compressed bytes if needed for padding detection.
+
+    Returns None when padding detection doesn't require a fetch: tiles,
+    single-strip images, evenly divisible strips, or uncompressed data.
+    """
+    if ifd.tile_height or not ifd.rows_per_strip:
+        return None
+    if ifd.rows_per_strip >= ifd.image_height:
+        return None
+    if ifd.image_height % ifd.rows_per_strip == 0:
+        return None
+    if ifd.compression <= 1:
+        return None
+
+    last_offset = ifd.strip_offsets[-1]
+    last_byte_count = ifd.strip_byte_counts[-1]
+    return bytes(
+        object_store.get_range(
+            store_path, start=last_offset, end=last_offset + last_byte_count
+        )
+    )
+
+
+def _is_last_strip_padded(
+    ifd: ImageFileDirectory,
+    rows_per_strip: int,
+    last_strip_data: bytes | None,
+) -> bool:
+    """Detect whether the last strip is padded to full rows_per_strip size.
+
+    For uncompressed TIFFs, compares the last strip's byte count against the
+    expected size for a full strip. For compressed TIFFs, decompresses the
+    provided last strip data to determine its actual size.
+
+    Returns True if the last strip is padded (use regular grid),
+    False if unpadded (use rectilinear grid).
+    """
+    byte_counts = ifd.strip_byte_counts
+    if not byte_counts or len(byte_counts) < 2:
+        return False
+
+    bytes_per_row = ifd.image_width * sum(ifd.bits_per_sample) // 8
+    full_strip_bytes = rows_per_strip * bytes_per_row
+
+    if ifd.compression <= 1:
+        # Uncompressed: compare byte counts directly
+        return byte_counts[-1] >= full_strip_bytes
+
+    # Compressed: decompress the last strip to check its actual size.
+    # Some codecs (e.g. JPEG with external quantization tables) cannot
+    # decompress a strip independently.
+    if last_strip_data is not None:
+        try:
+            decompressed_size = _decompress_strip(ifd.compression, last_strip_data)
+        except Exception as e:
+            raise NotImplementedError(
+                f"Cannot determine last strip padding for compression tag "
+                f"{ifd.compression}: {e}"
+            ) from e
+        return decompressed_size >= full_strip_bytes
+
+    return False
+
+
 def _get_chunks_from_strips(
-    ifd: ImageFileDirectory, image_height: int
-) -> tuple[tuple[int, ...], list[int], list[int]]:
-    rows_per_strip = ifd.rows_per_strip
+    ifd: ImageFileDirectory,
+    image_height: int,
+    last_strip_data: bytes | None,
+) -> tuple[tuple[int, ...] | list[list[int]], list[int], list[int]]:
+    rows_per_strip: int = ifd.rows_per_strip
+    chunks: tuple[int, ...] | list[list[int]]
     if rows_per_strip > image_height:
         chunks = (image_height, ifd.image_width)
+    elif (remainder := image_height % rows_per_strip) > 0:
+        if _is_last_strip_padded(ifd, rows_per_strip, last_strip_data):
+            # Last strip is padded — use regular grid. The codec will receive
+            # full-strip-sized buffers and zarr's boundary clipping handles
+            # the data trimming.
+            chunks = (rows_per_strip, ifd.image_width)
+        elif _has_unified_chunk_grid():
+            # Last strip is unpadded — use rectilinear grid with actual sizes
+            quotient = image_height // rows_per_strip
+            chunks = [[rows_per_strip] * quotient + [remainder], [ifd.image_width]]
+        else:
+            # No rectilinear support and unpadded partial strip
+            check_no_partial_strips(
+                image_height=image_height, rows_per_strip=rows_per_strip
+            )
     else:
         chunks = (rows_per_strip, ifd.image_width)
-    check_no_partial_strips(image_height=image_height, rows_per_strip=chunks[0])
     offsets = ifd.strip_offsets
     byte_counts = ifd.strip_byte_counts
     return chunks, offsets, byte_counts
@@ -263,7 +393,7 @@ def _get_codecs(
     ifd: ImageFileDirectory,
     *,
     shape: tuple[int, ...],
-    chunks: tuple[int, ...],
+    chunks: tuple[int, ...] | list[list[int]],
     dtype: np.dtype,
     endian: str,
 ) -> list[BaseCodec]:
@@ -287,7 +417,7 @@ def _get_codecs(
 def _parse_geo_key_directory(geo_key_directory: GeoKeyDirectory) -> dict[str, Any]:
     attrs = {}
     for key in GEO_KEYS:
-        if value := getattr(geo_key_directory, key) is not None:
+        if (value := getattr(geo_key_directory, key)) is not None:
             attrs[key] = value
     return attrs
 
@@ -315,16 +445,30 @@ def _get_attributes(ifd: ImageFileDirectory) -> dict[str, Any]:
 
 
 def _add_dim_for_samples_per_pixel(
-    ifd: ImageFileDirectory, shape: tuple[int, ...], chunks: tuple[int, ...]
-) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    ifd: ImageFileDirectory,
+    shape: tuple[int, ...],
+    chunks: tuple[int, ...] | list[list[int]],
+) -> tuple[tuple[int, ...], tuple[int, ...] | list[list[int]]]:
     sample_dim_length = int(ifd.samples_per_pixel)
     shape = (sample_dim_length,) + shape
     if ifd.planar_configuration == 2:
         # For PlanarConfiguration = 2, the offsets for each component plane are stored
         # separately. Each plane has its own set of offsets, ordered by component.
-        chunks = (1,) + chunks
+        if _is_rectilinear_chunks(chunks):
+            assert isinstance(chunks, list)
+            chunks = [[1] * sample_dim_length] + chunks
+        else:
+            assert isinstance(chunks, tuple)
+            chunks = (1,) + chunks
     else:
-        chunks = (sample_dim_length,) + chunks
+        # Check if rectilinear or regular chunk grid
+        if _is_rectilinear_chunks(chunks):
+            assert isinstance(chunks, list)
+            chunks = [[sample_dim_length]] + chunks
+        else:
+            assert isinstance(chunks, tuple)
+            chunks = (sample_dim_length,) + chunks
+
     return shape, chunks
 
 
@@ -332,11 +476,14 @@ def _construct_chunk_manifest(
     *,
     url: str,
     shape: tuple[int, ...],
-    chunks: tuple[int, ...],
+    chunks: tuple[int, ...] | list[list[int]],
     offsets: Iterable[int],
     byte_counts: Iterable[int],
 ) -> ChunkManifest:
-    chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    if isinstance(chunks, tuple):
+        chunk_manifest_shape = tuple(math.ceil(a / b) for a, b in zip(shape, chunks))
+    else:
+        chunk_manifest_shape = tuple(len(b) for b in chunks)
     offsets = np.array(offsets, dtype=np.uint64)
     byte_counts = np.array(byte_counts, dtype=np.uint64)
 
@@ -359,13 +506,19 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
 
 
 def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, url: str, endian: str
+    *,
+    ifd: ImageFileDirectory,
+    url: str,
+    endian: str,
+    last_strip_data: bytes | None,
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
     shape: Tuple[int, ...] = (ifd.image_height, ifd.image_width)
     dtype = _get_dtype(
-        sample_format=ifd.sample_format, bits_per_sample=ifd.bits_per_sample
+        sample_format=ifd.sample_format,
+        bits_per_sample=ifd.bits_per_sample,
+        endian=endian,
     )
     dimension_names: Tuple[str, ...] = ("y", "x")  # Following rioxarray's behavior
     if ifd.compression == 50001 and ifd.extra_samples:
@@ -379,7 +532,7 @@ def _construct_manifest_array(
         chunks, offsets, byte_counts = _get_chunks_from_tiles(ifd)
     elif ifd.rows_per_strip:
         chunks, offsets, byte_counts = _get_chunks_from_strips(
-            ifd, image_height=shape[0]
+            ifd, image_height=shape[0], last_strip_data=last_strip_data
         )
     else:
         raise NotImplementedError(
@@ -404,16 +557,24 @@ def _construct_manifest_array(
             f"Nested grids are not supported, but file has {nested} nested grid based on GDAL metadata."
         )
     zdtype = parse_data_type(dtype, zarr_format=3)
+    if isinstance(chunks[0], int):
+        chunk_grid = {
+            "name": "regular",
+            "configuration": {"chunk_shape": chunks},
+        }
+    else:
+        chunk_grid = {
+            "name": "rectilinear",
+            "configuration": {"kind": "inline", "chunk_shapes": chunks},
+        }
+
     attributes, fill_value = _consolidate_fill_value(attributes, dtype)
     if fill_value is None:
         fill_value = zdtype.default_scalar()
     metadata = ArrayV3Metadata(
         shape=shape,
         data_type=zdtype,
-        chunk_grid={
-            "name": "regular",
-            "configuration": {"chunk_shape": chunks},
-        },
+        chunk_grid=chunk_grid,
         chunk_key_encoding={"name": "default"},
         fill_value=fill_value,
         codecs=codecs,
@@ -435,20 +596,25 @@ def _construct_manifest_group(
     """Construct a ManifestGroup from TIFF IFDs.
 
     Args:
-        store: Object store for reading the TIFF
-        path: Full URL path to the TIFF file
+        store: obstore ObjectStore for reading the TIFF
+        path: Path within the store to the TIFF file
         ifd: Specific IFD index to process, or None for all IFDs
         ifd_layout: How to organize IFDs - 'flat' for single group, 'nested' for group per IFD
 
     Returns:
         ManifestGroup containing the processed TIFF data
     """
-    # TODO: Make an async approach
+    # TODO: Make an async approach.
+    # `async_tiff.TIFF.open` accepts any object implementing the obspec async
+    # read protocol (see async_tiff/python/tests/test_obspec.py), so we hand
+    # the obstore-or-wrapper through directly. Wrapping a Python store here
+    # is fine: TIFF reads issue range requests via the obspec protocol, which
+    # gives wrappers (caching, tracing) a chance to intercept.
     tiff = sync(_open_tiff(store=store, path=path))
     endian = _ENDIANNESS_TO_STR[tiff.endianness]
 
     # Build manifest arrays from selected IFDs
-    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
+    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd, store, path)
 
     # Organize into appropriate group structure
     attrs: dict[str, Any] = {}
@@ -467,14 +633,21 @@ def _build_manifest_arrays(
     url: str,
     endian: str,
     ifd_index: int | None,
+    object_store: ObjectStore,
+    store_path: str,
 ) -> dict[str, ManifestArray]:
     """Build manifest arrays from TIFF IFDs.
 
+    Fetches the last strip's compressed bytes for each IFD that needs
+    padding detection, then delegates to store-agnostic functions.
+
     Args:
         tiff: Opened TIFF file
-        path: Full URL path to the TIFF file
+        url: Full URL path to the TIFF file
         endian: Byte order
         ifd_index: Specific IFD to process, or None for all
+        object_store: Object store for fetching raw bytes
+        store_path: Path within the store
 
     Returns:
         Dictionary mapping IFD indices (as strings) to ManifestArrays
@@ -483,14 +656,17 @@ def _build_manifest_arrays(
 
     if ifd_index is not None:
         # Process single specified IFD
+        ifd = tiff.ifds[ifd_index]
+        last_strip_data = _fetch_last_strip(ifd, object_store, store_path)
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index], url=url, endian=endian
+            ifd=ifd, url=url, endian=endian, last_strip_data=last_strip_data
         )
     else:
         # Process all IFDs
         for idx, ifd in enumerate(tiff.ifds):
+            last_strip_data = _fetch_last_strip(ifd, object_store, store_path)
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd, url=url, endian=endian
+                ifd=ifd, url=url, endian=endian, last_strip_data=last_strip_data
             )
 
     return manifest_arrays
@@ -553,11 +729,10 @@ class VirtualTIFF:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         store, path_in_store = registry.resolve(url)
-        async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
             url,
-            store=async_tiff_store,
+            store=store,
             path=path_in_store,
             ifd=self._ifd,
             ifd_layout=self.ifd_layout,

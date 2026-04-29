@@ -9,6 +9,7 @@ import numpy as np
 from zarr.abc.codec import (
     ArrayArrayCodec,
     ArrayBytesCodec,
+    BytesBytesCodec,
     CodecJSON,
     CodecJSON_V2,
     CodecJSON_V3,
@@ -231,8 +232,19 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         #    Passing dtype= forces the accumulation in the original width.
         dtype = chunk_array._data.dtype
         uint_dtype = np.dtype(f"u{dtype.itemsize}")
-        result = chunk_array._data.view(uint_dtype)
-        result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+
+        if not dtype.isnative and dtype.itemsize > 1:
+            # Non-native byte order: convert to native, cumsum, convert back.
+            # cumsum always produces native byte order output, so operating
+            # directly on non-native data corrupts the result.
+            native_dtype = dtype.newbyteorder("=")
+            data = chunk_array._data.astype(native_dtype).view(uint_dtype)
+            result = data.cumsum(axis=-1, dtype=uint_dtype)
+            result = result.view(native_dtype).astype(dtype)
+        else:
+            result = chunk_array._data.view(uint_dtype)
+            result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+
         return chunk_array.__class__(result)
 
     async def _encode_single(
@@ -248,5 +260,56 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         return input_byte_length
 
 
+@dataclass(frozen=True)
+class TruncateCodec(BytesBytesCodec):
+    """Bytes-to-bytes codec that truncates oversized buffers to the expected chunk size.
+
+    Archival formats (TIFF strips, HDF5 chunks, etc.) may pad edge chunks to
+    full size on disk. When read through virtual Zarr stores, the codec pipeline
+    receives more bytes than the logical chunk shape expects. This codec trims
+    the buffer to the expected size before downstream codecs process it.
+    """
+
+    is_fixed_size = True
+
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JSON]) -> Self:
+        return cls()
+
+    def to_dict(self) -> dict[str, JSON]:
+        return {"name": "TruncateCodec"}
+
+    def evolve_from_array_spec(self, array_spec: ArraySpec) -> Self:
+        return self
+
+    async def _decode_single(
+        self,
+        chunk_bytes: Buffer,
+        chunk_spec: ArraySpec,
+    ) -> Buffer:
+        expected_size = int(np.prod(chunk_spec.shape)) * chunk_spec.dtype.item_size
+        if len(chunk_bytes) > expected_size:
+            return chunk_spec.prototype.buffer.from_array_like(
+                chunk_bytes.as_array_like()[:expected_size]
+            )
+        return chunk_bytes
+
+    async def _encode_single(
+        self,
+        chunk_bytes: Buffer,
+        _chunk_spec: ArraySpec,
+    ) -> Buffer:
+        return chunk_bytes
+
+    def compute_encoded_size(
+        self, input_byte_length: int, _chunk_spec: ArraySpec
+    ) -> int:
+        return input_byte_length
+
+
 register_codec("ChunkyCodec", ChunkyCodec)
 register_codec("HorizontalDeltaCodec", HorizontalDeltaCodec)
+register_codec("TruncateCodec", TruncateCodec)

@@ -8,6 +8,7 @@ from rioxarray import __version__ as _rioxarray_version
 from virtualizarr import open_virtual_dataset
 
 from virtual_tiff import VirtualTIFF
+from virtual_tiff.parser import _has_unified_chunk_grid
 
 from .conftest import (
     gdal_examples,
@@ -45,7 +46,13 @@ def run_gdal_test(rel_path, mask_and_scale=True):
         if filename in xfail_nodata_values:
             pytest.xfail("Per-band NODATA_VALUES tag not parsed by virtual-tiff")
     filepath = f"{resolve_folder('tests/data/gdal')}/{rel_path}"
-    if filename in unknown_compressor:
+    if not _has_unified_chunk_grid() and filename in partial_chunks:
+        match_error(
+            filepath,
+            (ValueError, NotImplementedError),
+            r"(Zarr's default chunk grid expects all chunks to be equal size|Cannot determine last strip padding)",
+        )
+    elif filename in unknown_compressor:
         match_error(
             filepath,
             ValueError,
@@ -62,12 +69,6 @@ def run_gdal_test(rel_path, mask_and_scale=True):
             filepath,
             NotImplementedError,
             "YCbCr PhotometricInterpretation is not yet supported.",
-        )
-    elif filename in partial_chunks:
-        match_error(
-            filepath,
-            ValueError,
-            r"Zarr's default chunk grid expects all chunks to be equal size, but this TIFF has an image height of (.*?)",
         )
     elif filename in byte_counts:
         match_error(
@@ -118,13 +119,13 @@ jpeg_tables = [
     "rgbsmall_JPEG_tiled.tif",
     "rgbsmall_JPEG_tiled_separate.tif",
     "byte_ovr_jpeg_tablesmode_not_correctly_set_on_ovr.tif",
-    # "tif_jpeg_too_big_last_stripe.tif",
+    "tif_jpeg_too_big_last_stripe.tif",
     "byte_ovr_jpeg_tablesmode2.tif",
     "byte_ovr_jpeg_tablesmode3.tif",
     "irregular_tile_size_jpeg_in_tiff.tif",
     "byte_jpg_unusual_jpegtable.tif",
-    # "stefan_full_rgba_jpeg_contig.tif",
-    # "stefan_full_rgba_jpeg_separate.tif",
+    "stefan_full_rgba_jpeg_contig.tif",
+    "stefan_full_rgba_jpeg_separate.tif",
     "rgbsmall_JPEG_separate.tif",
 ]
 unknown_compressor = [
@@ -139,7 +140,7 @@ unknown_compressor = [
 YCbCr = [
     "rgbsmall_JPEG_ycbcr.tif",
     "zackthecat_corrupted.tif",
-    # "tif_jpeg_ycbcr_too_big_last_stripe.tif",
+    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
     "sasha.tif",
     "zackthecat.tif",
     "ycbcr_with_mask.tif",
@@ -279,6 +280,8 @@ xfail_reshape = [
     "stripbytecounts_count_not_same_as_stripoffsets_count.tif",
 ]
 partial_chunks = [
+    # Files with partial (unpadded) last strips that require rectilinear
+    # chunk grids. Without rectilinear support, these raise ValueError.
     "isis3_geotiff.tif",
     "bug_6526_input.tif",
     "rgbsmall_uint16_LZW_predictor_2.tif",
@@ -294,23 +297,24 @@ partial_chunks = [
     "rgbsmall_uint64_LZW_predictor_2.tif",
     "utilities_utmsmall.tif",
     "stefan_full_rgba_LZW_predictor_2.tif",
-    "stefan_full_rgba_photometric_rgb.tif",
     "dstsize_larger_than_source.tif",
-    "sstgeo.tif",
-    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
     "test_gf.tif",
-    "stefan_full_rgba_jpeg_contig.tif",
-    "stefan_full_rgba_jpeg_separate.tif",
     "vrtmisc16_tile2.tif",
-    "tif_jpeg_too_big_last_stripe.tif",
     "transformer_13_dem.tif",
     "vrtmisc16_tile1.tif",
     "stefan_full_rgba.tif",
+    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
+    "quad-lzw-old-style.tif",
+    # JPEG files with partial strips raise NotImplementedError
+    # because the last strip cannot be decompressed independently
+    "tif_jpeg_ycbcr_too_big_last_stripe.tif",
+    "stefan_full_rgba_jpeg_contig.tif",
+    "stefan_full_rgba_jpeg_separate.tif",
+    "tif_jpeg_too_big_last_stripe.tif",
+    # Also in byte_counts, but partial strips error fires first
     "VH.tif",
     "VV.tif",
     "geog_arc_second.tif",
-    "rgbsmall_int16_bigendian_lzw_predictor_2.tif",
-    "quad-lzw-old-style.tif",
 ]
 xfail_alpha_masking = [
     # rioxarray masks via alpha band (ExtraSamples); virtual-tiff does not
