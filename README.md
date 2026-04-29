@@ -7,7 +7,7 @@ Virtual TIFF emits a [VirtualiZarr](https://virtualizarr.readthedocs.io/)-compat
 What this lets you do:
 
 - **Curate what's exposed.** Pick which bands, overviews, and AOIs land in the published store; consumers see one datacube, not hundreds of files.
-- **Detect source drift.** Icechunk records etags, so analyses can verify the source TIFFs haven't changed since the manifest was built.
+- **Detect source drift.** Icechunk records `ETag`s, so analyses can verify the source TIFFs haven't changed since the manifest was built.
 - **Open non-COG TIFFs without rewriting them.** Internally tiled TIFFs that aren't quite COG-compliant still get fast cloud-native access through the virtual store.
 
 ## When to use Virtual TIFF
