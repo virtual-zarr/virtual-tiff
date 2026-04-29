@@ -171,10 +171,19 @@ class ChunkyCodec(ArrayBytesCodec):
 
 @dataclass(frozen=True)
 class HorizontalDeltaCodec(ArrayArrayCodec):
-    is_fixed_size = True
+    """TIFF Predictor=2 (horizontal differencing) codec.
 
-    def __init__(self) -> None:
-        pass
+    The TIFF spec defines differencing on raw sample values in file byte order,
+    before any endian conversion. Since this is an ArrayArrayCodec (runs after
+    BytesCodec swaps to native endian), we must swap to file byte order before
+    the cumulative sum and back to native after, for non-native-endian data.
+    """
+
+    is_fixed_size = True
+    endian: Endian
+
+    def __init__(self, endian: Endian | str = Endian.little) -> None:
+        object.__setattr__(self, "endian", _parse_endian(endian) or Endian.little)
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
@@ -185,10 +194,18 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
 
     @classmethod
     def _from_json_v2(cls, data: CodecJSON) -> Self:
+        if isinstance(data, Mapping):
+            endian = data.get("endian", "little")
+            return cls(endian=endian)
         return cls()
 
     @classmethod
     def _from_json_v3(cls, data: CodecJSON) -> Self:
+        if isinstance(data, Mapping):
+            config = data.get("configuration", {})
+            if isinstance(config, Mapping):
+                endian = config.get("endian", "little")
+                return cls(endian=endian)
         return cls()
 
     @classmethod
@@ -204,9 +221,12 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
 
     def to_json(self, zarr_format: ZarrFormat) -> CodecJSON_V2 | CodecJSON_V3:
         if zarr_format == 2:
-            return {"id": "HorizontalDeltaCodec"}  # type: ignore[return-value]
+            return {"id": "HorizontalDeltaCodec", "endian": self.endian.value}  # type: ignore[return-value, typeddict-item]
         elif zarr_format == 3:
-            return {"name": "HorizontalDeltaCodec"}
+            return {
+                "name": "HorizontalDeltaCodec",
+                "configuration": {"endian": self.endian.value},
+            }
         raise ValueError(
             f"Unsupported Zarr format {zarr_format}. Expected 2 or 3."
         )  # pragma: no cover
@@ -223,16 +243,45 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         # consecutive samples as raw unsigned integers, regardless of the
         # actual data type. Decoding reverses this via cumulative sum.
         #
-        # Two subtleties require operating on an unsigned integer view:
+        # Three subtleties require care:
         # 1. Float data: the differences are of the uint bit patterns, not
         #    float values (e.g. float32 diffs are uint32 subtractions).
         # 2. Integer overflow: numpy.cumsum upcasts small unsigned types
         #    (e.g. uint16 → uint64), losing modular wrapping arithmetic.
         #    Passing dtype= forces the accumulation in the original width.
-        dtype = chunk_array._data.dtype
-        uint_dtype = np.dtype(f"u{dtype.itemsize}")
-        result = chunk_array._data.view(uint_dtype)
-        result = result.cumsum(axis=-1, dtype=uint_dtype).view(dtype)
+        # 3. Endianness: the TIFF spec defines differencing on raw sample
+        #    values in file byte order. By the time this ArrayArrayCodec
+        #    runs, BytesCodec has already swapped to native endian. For
+        #    non-native data, we must swap to file order before cumsum
+        #    and back to native after, so the wrapping arithmetic matches.
+        data = chunk_array._data
+        dtype = data.dtype
+        itemsize = dtype.itemsize
+        native_uint = np.dtype(f"u{itemsize}")
+
+        # Determine if file endian differs from the array's current byte order.
+        # After BytesCodec, the array is native-endian. dtype.byteorder is
+        # '<', '>', '=' or '|'. Normalize to compare against self.endian.
+        bo = dtype.byteorder
+        if bo == "=":
+            bo = "<" if np.little_endian else ">"
+        elif bo == "|":
+            bo = "<"  # single-byte: endian doesn't matter
+        native_is_file_order = (bo == "<" and self.endian == Endian.little) or (
+            bo == ">" and self.endian == Endian.big
+        )
+
+        if itemsize > 1 and not native_is_file_order:
+            # Non-native endian: swap to file order, cumsum, swap back
+            file_prefix = "<" if self.endian == Endian.little else ">"
+            file_uint = np.dtype(f"{file_prefix}u{itemsize}")
+            result = data.view(native_uint).byteswap().view(file_uint)
+            result = result.cumsum(axis=-1, dtype=file_uint)
+            result = result.view(native_uint).byteswap().view(dtype)
+        else:
+            result = data.view(native_uint)
+            result = result.cumsum(axis=-1, dtype=native_uint).view(dtype)
+
         return chunk_array.__class__(result)
 
     async def _encode_single(
