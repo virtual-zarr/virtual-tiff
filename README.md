@@ -1,105 +1,155 @@
 # Virtual TIFF
 
-A Parser for creating Virtual Zarr stores from TIFF files using [VirtualiZarr 2.0](https://virtualizarr.readthedocs.io/en/stable/index.html) and [async-tiff](https://developmentseed.org/async-tiff/latest/).
+**Turn TIFF and COG archives into Zarr stores without copying any data.**
 
-## Background
+Virtual TIFF emits a [VirtualiZarr](https://virtualizarr.readthedocs.io/)-compatible Zarr v3 store backed by byte-range references into the original TIFFs. Persist it with [Icechunk](https://icechunk.io/) and you've published a coherent datacube — readable in any language with a Zarr+Icechunk client — without copying any pixels.
 
-First, some thoughts on why we should virtualize GeoTIFFs and/or COGS:
+What this lets you do:
 
-1. Provide faster access to non-cloud-optimized GeoTIFFS that contain some form of internal tiling without any data duplication [see notebook #1](demos/01_faster_loading_3.0.ipynb).
-2. Provide fully async I/O for both GeoTIFFs and COGs using Zarr-Python
-3. Allow loading a stack of GeoTIFFS/COGS into a data cube while minimizing the number of GET requests relative to using stackstac/odc-stac, thereby decreasing cost and increasing performance
-4. Provide users access to a lazily loaded DataTree providing both the data and the overviews, allowing scientists to use the overviews not only for tile-based visualization but also quickly iterating on analytics
-5. Include etags in the virtualized datasets to support reproducibility
-6. A motivation that's less clear to me, but maybe possible, is using the virtualization layer to access COGs with disparate CRSs as a single dataset (https://github.com/zarr-developers/geozarr-spec/issues/53)
+- **Curate what's exposed.** Pick which bands, overviews, and AOIs land in the published store; consumers see one datacube, not hundreds of files.
+- **Detect source drift.** Icechunk records `ETag`s, so analyses can verify the source TIFFs haven't changed since the manifest was built.
+- **Open non-COG TIFFs without rewriting them.** Internally tiled TIFFs that aren't quite COG-compliant still get fast cloud-native access through the virtual store.
 
-## Getting started
+## When to use Virtual TIFF
 
-The library can be installed from PyPI:
+- You're building a **datacube product** over a TIFF/COG archive that should outlive any single Python session.
+- You need **non-Python clients** (zarrs, zarrita.js, zarr-layer) to read the archive without knowing it's TIFF underneath.
+- You want **Icechunk-versioned** access to the archive: snapshots, transactions, time-travel as new acquisitions land.
+- The archive is queried **many times**, and amortizing per-file IFD discovery across all those queries actually matters.
+- You want to expose **overviews** as a native Zarr multiscale group, so downstream tools (visualization, fast analytics) can use them directly.
+
+Virtual TIFF stitches, it doesn't mosaic. Combining files into a single array requires a structured grid — matching CRS and resolution, or resolution that varies systematically along an axis (e.g. via rectilinear chunking). Heterogeneous TIFFs can still coexist as separate arrays in a DataTree, but you lose the unified-cube benefit. Pixel-level mosaicking and reprojection happen downstream in numpy, dask, or rioxarray — Virtual TIFF doesn't do math.
+
+## When *not* to use Virtual TIFF
+
+If your workflow is "open a STAC search, get an xarray DataArray, do
+analysis," you probably don't need a virtual store. Reach for one of:
+
+- [**lazycogs**](https://developmentseed.org/lazycogs) — STAC + async-geotiff with on-the-fly reprojection, for dynamic queries and heterogeneous-CRS data.
+- [**stackstac**](https://stackstac.readthedocs.io/) / [**odc-stac**](https://odc-stac.readthedocs.io/) — established STAC-to-DataArray loaders for analyst workflows.
+- [**async-tiff**](https://developmentseed.org/async-tiff/) / [**async-geotiff**](https://github.com/developmentseed/async-geotiff)
+  directly — when you just want a fast async TIFF reader and don't need a Zarr surface at all.
+
+Virtual TIFF shares the same async-tiff I/O layer as lazycogs and async-geotiff; stackstac and odc-stac sit on rasterio/GDAL instead. The bigger split is what gets produced: a runtime DataArray versus a publishable virtual Zarr store. Pick the one that matches your output.
+
+## How it fits
+
+The point of Virtual TIFF is that it's **not in the read path**. It runs once, when the manifest is built. After that, every consumer goes straight from their Zarr client to the manifest to the TIFF byte ranges.
+
+**Build-time (once, by the data publisher)**
+
+```
+   TIFFs / COGs in S3, GCS, Azure, …
+              │
+              │  byte-range GETs for IFD metadata
+              ▼
+   async-tiff + obstore
+              │
+              ▼
+   Virtual TIFF  ── VirtualiZarr parser, run once
+              │
+              ▼
+   manifest committed to an Icechunk repo
+```
+
+**Read-time (every time, in any session)**
+
+```
+   Zarr v3 client  +  Icechunk store driver
+   (e.g. zarr-python + icechunk-python,
+         zarrs + icechunk-rs, …)
+              │
+              │  Zarr reads issued through the Icechunk Store
+              ▼
+   Icechunk repo  ── snapshot + manifest
+              │
+              │  Icechunk resolves chunk keys to
+              │  (file_url, offset, length) per chunk
+              ▼
+   TIFFs / COGs in S3, GCS, Azure, …
+              │
+              │  parallel byte-range GETs
+              ▼
+   decoded chunks via the Zarr codec pipeline
+```
+
+Note the absence of virtual-tiff and async-tiff from the read-time path. They're build-time tools; once the manifest exists, consumers reach the source bytes through Icechunk alone.
+
+## Quick start
 
 ```bash
 python -m pip install virtual-tiff
 ```
 
-You can use Virtual TIFF to load data directly:
+### Open a single TIFF as a Zarr-backed xarray dataset
 
 ```python
 import obstore
+import xarray as xr
 from obspec_utils.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
-import xarray as xr
 
-# Configuration
 bucket_url = "s3://e84-earth-search-sentinel-data/"
 file_url = f"{bucket_url}sentinel-2-c1-l2a/10/T/FR/2023/12/S2B_T10TFR_20231223T190950_L2A/B04.tif"
 
-# Setup and open dataset
 s3_store = obstore.store.from_url(bucket_url, region="us-west-2", skip_signature=True)
 registry = ObjectStoreRegistry({bucket_url: s3_store})
 
 parser = VirtualTIFF(ifd=0)
 manifest_store = parser(url=file_url, registry=registry)
 ds = xr.open_zarr(manifest_store, zarr_format=3, consolidated=False)
-ds.load()
 ```
 
-It also works with Google Cloud Storage:
+Works equally for GCS, Azure, or any obstore-supported backend — swap the
+store factory.
+
+### Build a virtual dataset for use with VirtualiZarr
 
 ```python
-import obstore
-from obspec_utils.registry import ObjectStoreRegistry
-from virtual_tiff import VirtualTIFF
-import xarray as xr
-
-# Configuration
-bucket_url = "gs://gcp-public-data-landsat/"
-file_url = f"{bucket_url}LC08/01/044/034/LC08_L1TP_044034_20131228_20170307_01_T1/LC08_L1TP_044034_20131228_20170307_01_T1_B3.TIF"
-
-# Setup and open dataset
-gcs_store = obstore.store.from_url(bucket_url, skip_signature=True)
-registry = ObjectStoreRegistry({bucket_url: gcs_store})
-
-parser = VirtualTIFF(ifd=0)
-manifest_store = parser(url=file_url, registry=registry)
-ds = xr.open_zarr(manifest_store, zarr_format=3, consolidated=False)
-ds.load()
-```
-
-or create a virtual dataset:
-
-```python
-import obstore
 from virtualizarr import open_virtual_dataset
-from obspec_utils.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
-
-# Configuration
-bucket_url = "s3://e84-earth-search-sentinel-data/"
-file_url = f"{bucket_url}sentinel-2-c1-l2a/10/T/FR/2023/12/S2B_T10TFR_20231223T190950_L2A/B04.tif"
-
-# Setup and open dataset
-s3_store = obstore.store.from_url(bucket_url, region="us-west-2", skip_signature=True)
-registry = ObjectStoreRegistry({bucket_url: s3_store})
 
 ds = open_virtual_dataset(
     url=file_url,
     registry=registry,
-    parser=VirtualTIFF(ifd=0)
+    parser=VirtualTIFF(ifd=0),
 )
 ```
 
+## What's supported
+
+| TIFF feature | Supported | Notes |
+|---|:---:|---|
+| Strips | ✅ | Image height must be evenly divisible by rows-per-strip |
+| Tiles | ✅ | |
+| Multiple IFDs | ✅ | |
+| Nested pages / IFDs | ❌ | |
+| Compressions: Uncompressed, PackBits, Zlib, LZMA, Lerc, PNG, Deflate, LZW, JPEGXL, JPEG8, WebP | ✅ | |
+| JPEG | ❌ | Quantization tables (the `JPEGTables` tag) are not yet supported, which excludes nearly all JPEG-encoded TIFFs in practice. |
+| CMYK | ✅ | |
+| YCbCr / CIE L\*a\*b\* / Palette-color | ❌ | |
+| Grayscale, RGB | ✅ | |
+| PlanarConfiguration (chunky and planar) | ✅ | |
+| Both byte orders (II & MM) | ✅ | |
+| BigTIFF (64-bit offsets) | ✅ | |
+
+
 ## Contributing
 
-1. Clone the repository: `git clone https://github.com/virtual-zarr/virtual-tiff.git`.
-2. Download test data from S3: `pixi run -e test download-test-images`. WARNING: This will download ~1.4GB of TIFFs for testing to your machine.
-3. Run the test suite using `pixi run -e test run-tests` WARNING: Some tests will fail due to incomplete status of the implementation.
-4. Start a shell if needed in the development environment using `pixi run -e test zsh`.
+1. `git clone https://github.com/virtual-zarr/virtual-tiff.git`
+2. `pixi run -e test download-test-images` (downloads ~1.4 GB of test TIFFs)
+3. `pixi run -e test run-tests` — note: some tests are expected to fail while
+   the implementation is in progress.
+4. `pixi run -e test zsh` for a dev shell.
 
-Test data is populated from three upstream sources via sync scripts (run these before `upload_test_data.py` to refresh S3):
+Test data is populated from three upstream sources via sync scripts:
+
 - `uv run scripts/sync_gdal_tiffs.py` — GDAL autotest TIFFs
 - `uv run scripts/sync_external_tiffs.py` — external TIFFs from various URLs
-- `uv run scripts/sync_geotiff_test_data.py` — synthetic and real-world fixtures from [geotiff-test-data](https://github.com/developmentseed/geotiff-test-data)
+- `uv run scripts/sync_geotiff_test_data.py` — fixtures from
+  [geotiff-test-data](https://github.com/developmentseed/geotiff-test-data)
 
 ## License
 
-`virtual-tiff` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`virtual-tiff` is distributed under the terms of the
+[MIT](https://spdx.org/licenses/MIT.html) license.

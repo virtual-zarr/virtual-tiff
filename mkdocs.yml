@@ -21,6 +21,7 @@ nav:
 watch:
   - src/virtual_tiff
   - docs
+  - README.md
 
 theme:
   language: en
