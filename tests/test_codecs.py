@@ -25,10 +25,7 @@ from virtual_tiff.imagecodecs import (
     LZWCodec,
     ZstdCodec,
 )
-from virtual_tiff.parser import (
-    ZSTD_LEVEL_TAG,
-    _get_compression,
-)
+from virtual_tiff.parser import ZSTD_LEVEL_TAG, _get_compression
 
 _DEFAULT_CONFIG = ArrayConfig(order="C", write_empty_chunks=True)
 
@@ -470,15 +467,15 @@ def test_imagecodecs_floatpred_resolve_metadata_no_astype():
 
 class TestZstdLevelTag:
     def test_zstd_level_tag_constant_value(self):
-        """The constant should be the numeric tag ID."""
-        assert ZSTD_LEVEL_TAG == "65564"
-        assert ZSTD_LEVEL_TAG != "ZSTD_LEVEL_TAG"
+        """The constant should be the numeric tag ID (int, matching async-tiff >= 0.7.0)."""
+        assert ZSTD_LEVEL_TAG == 65564
+        assert isinstance(ZSTD_LEVEL_TAG, int)
 
     def test_zstd_level_read_from_ifd(self):
         """_get_compression should use the ZSTD level from ifd.other_tags."""
         ifd = FakeIFD(
             compression=50000,
-            other_tags={ZSTD_LEVEL_TAG: 3},  # key "65564" -> level 3
+            other_tags={ZSTD_LEVEL_TAG: 3},  # int key 65564 -> level 3
         )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
