@@ -28,7 +28,7 @@ analysis," you probably don't need a virtual store. Reach for one of:
 - [**async-tiff**](https://developmentseed.org/async-tiff/) / [**async-geotiff**](https://github.com/developmentseed/async-geotiff)
   directly — when you just want a fast async TIFF reader and don't need a Zarr surface at all.
 
-Virtual TIFF and these tools share the same underlying I/O layer (async-tiff). They differ in what they produce: a runtime DataArray versus a publishable virtual Zarr store. Pick the one that matches your output.
+Virtual TIFF shares the same async-tiff I/O layer as lazycogs and async-geotiff; stackstac and odc-stac sit on rasterio/GDAL instead. The bigger split is what gets produced: a runtime DataArray versus a publishable virtual Zarr store. Pick the one that matches your output.
 
 ## How it fits
 
