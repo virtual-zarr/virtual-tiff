@@ -18,6 +18,8 @@ What this lets you do:
 - The archive is queried **many times**, and amortizing per-file IFD discovery across all those queries actually matters.
 - You want to expose **overviews** as a native Zarr multiscale group, so downstream tools (visualization, fast analytics) can use them directly.
 
+Virtual TIFF stitches, it doesn't mosaic. Combining files into a single array requires a structured grid — matching CRS and resolution, or resolution that varies systematically along an axis (e.g. via rectilinear chunking). Heterogeneous TIFFs can still coexist as separate arrays in a DataTree, but you lose the unified-cube benefit. Pixel-level mosaicking and reprojection happen downstream in numpy, dask, or rioxarray — Virtual TIFF doesn't do math.
+
 ## When *not* to use Virtual TIFF
 
 If your workflow is "open a STAC search, get an xarray DataArray, do
