@@ -74,6 +74,16 @@ geotiff_test_data_failures = {
     "rasterio_generated/fixtures/uint8_rgba_webp_block64_cog.tif": "ValueError: cannot reshape array of size 12288 into shape (4,64,64)",
     "real_data/hot-oam/68077a72c46a9912474701ef.tif": "NotImplementedError: YCbCr PhotometricInterpretation is not yet supported.",
     "real_data/vantor/maxar_opendata_yellowstone_visual.tif": "NotImplementedError: YCbCr PhotometricInterpretation is not yet supported.",
+    "real_data/rio-tiler/cog_rgb_with_stats.tif": "NotImplementedError: YCbCr PhotometricInterpretation is not yet supported.",
+    "real_data/rio-tiler/non-tiled.tif": "ValueError: Zarr's default chunk grid expects all chunks to be equal size, but this TIFF has an uneven last strip.",
+}
+
+# Failures only when mask_and_scale=True; raw data passes. Tracked in
+# https://github.com/virtual-zarr/virtual-tiff/issues/90.
+geotiff_test_data_mask_and_scale_failures = {
+    "rasterio_generated/fixtures/cog_uint8_rgba.tif": "Alpha band masking not yet supported (issue #90, Category 1).",
+    "rasterio_generated/fixtures/cog_uint8_rgb_mask.tif": "Internal mask IFDs not yet supported (issue #90, Category 2).",
+    "rasterio_generated/fixtures/uint8_1band_deflate_block128_unaligned_mask.tif": "Internal mask IFDs not yet supported (issue #90, Category 2).",
 }
 
 
@@ -82,6 +92,8 @@ geotiff_test_data_failures = {
 def test_geotiff_test_data_load(rel_path, mask_and_scale):
     if rel_path in geotiff_test_data_failures:
         pytest.xfail(geotiff_test_data_failures[rel_path])
+    if mask_and_scale and rel_path in geotiff_test_data_mask_and_scale_failures:
+        pytest.xfail(geotiff_test_data_mask_and_scale_failures[rel_path])
     filepath = f"{resolve_folder('tests/data/geotiff-test-data')}/{rel_path}"
     registry = ObjectStoreRegistry({"file://": LocalStore()})
     ds = loadable_dataset(
