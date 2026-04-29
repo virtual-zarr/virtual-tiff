@@ -359,7 +359,11 @@ async def _open_tiff(*, path: str, store: ObjectStore) -> TIFF:
 
 
 def _construct_manifest_array(
-    *, ifd: ImageFileDirectory, url: str, endian: str
+    *,
+    ifd: ImageFileDirectory,
+    url: str,
+    endian: str,
+    band_indices: list[int] | None = None,
 ) -> ManifestArray:
     if ifd.other_tags.get(330):
         raise NotImplementedError("TIFFs with Sub-IFDs are not yet supported.")
@@ -394,6 +398,35 @@ def _construct_manifest_array(
             ifd=ifd, shape=shape, chunks=chunks
         )
         dimension_names = ("band",) + dimension_names
+    if band_indices is not None:
+        if "band" not in dimension_names:
+            raise ValueError(
+                "band_indices requires a multi-band TIFF (samples_per_pixel > 1)"
+            )
+        if ifd.planar_configuration != 2:
+            raise ValueError(
+                "band_indices requires planar_configuration=2 (separate planes). "
+                "Interleaved TIFFs (planar_configuration=1) store all bands in "
+                "each tile, so individual bands cannot be selected."
+            )
+        num_bands = shape[0]
+        for idx in band_indices:
+            if idx < 0 or idx >= num_bands:
+                raise IndexError(
+                    f"Band index {idx} out of range for TIFF with {num_bands} bands"
+                )
+        tiles_per_band = math.prod(
+            math.ceil(s / c) for s, c in zip(shape[1:], chunks[1:])
+        )
+        offsets_2d = np.array(offsets, dtype=np.int64).reshape(
+            num_bands, tiles_per_band
+        )
+        byte_counts_2d = np.array(byte_counts, dtype=np.int64).reshape(
+            num_bands, tiles_per_band
+        )
+        offsets = offsets_2d[band_indices].ravel().tolist()
+        byte_counts = byte_counts_2d[band_indices].ravel().tolist()
+        shape = (len(band_indices),) + shape[1:]
     chunk_manifest = _construct_chunk_manifest(
         url=url, shape=shape, chunks=chunks, offsets=offsets, byte_counts=byte_counts
     )
@@ -431,6 +464,7 @@ def _construct_manifest_group(
     *,
     ifd: int | None = None,
     ifd_layout: Literal["flat", "nested"] = "flat",
+    band_indices: list[int] | None = None,
 ) -> ManifestGroup:
     """Construct a ManifestGroup from TIFF IFDs.
 
@@ -448,7 +482,7 @@ def _construct_manifest_group(
     endian = _ENDIANNESS_TO_STR[tiff.endianness]
 
     # Build manifest arrays from selected IFDs
-    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd)
+    manifest_arrays = _build_manifest_arrays(tiff, url, endian, ifd, band_indices)
 
     # Organize into appropriate group structure
     attrs: dict[str, Any] = {}
@@ -467,6 +501,7 @@ def _build_manifest_arrays(
     url: str,
     endian: str,
     ifd_index: int | None,
+    band_indices: list[int] | None = None,
 ) -> dict[str, ManifestArray]:
     """Build manifest arrays from TIFF IFDs.
 
@@ -475,6 +510,7 @@ def _build_manifest_arrays(
         path: Full URL path to the TIFF file
         endian: Byte order
         ifd_index: Specific IFD to process, or None for all
+        band_indices: Specific band indices to include, or None for all
 
     Returns:
         Dictionary mapping IFD indices (as strings) to ManifestArrays
@@ -484,13 +520,19 @@ def _build_manifest_arrays(
     if ifd_index is not None:
         # Process single specified IFD
         manifest_arrays[str(ifd_index)] = _construct_manifest_array(
-            ifd=tiff.ifds[ifd_index], url=url, endian=endian
+            ifd=tiff.ifds[ifd_index],
+            url=url,
+            endian=endian,
+            band_indices=band_indices,
         )
     else:
         # Process all IFDs
         for idx, ifd in enumerate(tiff.ifds):
             manifest_arrays[str(idx)] = _construct_manifest_array(
-                ifd=ifd, url=url, endian=endian
+                ifd=ifd,
+                url=url,
+                endian=endian,
+                band_indices=band_indices,
             )
 
     return manifest_arrays
@@ -528,7 +570,10 @@ def _create_nested_group(
 
 class VirtualTIFF:
     def __init__(
-        self, ifd: int | None = None, ifd_layout: Literal["flat", "nested"] = "flat"
+        self,
+        ifd: int | None = None,
+        ifd_layout: Literal["flat", "nested"] = "flat",
+        band_indices: list[int] | None = None,
     ) -> None:
         """Configure VirtualTIFF parser.
 
@@ -538,9 +583,14 @@ class VirtualTIFF:
                 "flat" for all arrays to be contained in a single group. Choose "nested" for each array to be contained in a
                 different group. "nested" is compatible with Xarray's DataTree model, because
                 each node in the DataTree needs to be a Dataset (i.e., group) rather than Dataarray (i.e., array). Default is "flat".
+            band_indices : Specific band indices to include from multi-band TIFFs
+                (planar_configuration=2). Defaults to None, meaning all bands are included.
+                For example, ``band_indices=[0, 3, 15]`` will only build manifest entries
+                for those three bands, so unselected bands never enter the dask graph.
         """
         self._ifd = ifd
         self.ifd_layout = ifd_layout
+        self._band_indices = band_indices
 
     def __call__(self, url: str, registry: ObjectStoreRegistry) -> ManifestStore:
         """Produce a ManifestStore from a file path and object store instance.
@@ -561,6 +611,7 @@ class VirtualTIFF:
             path=path_in_store,
             ifd=self._ifd,
             ifd_layout=self.ifd_layout,
+            band_indices=self._band_indices,
         )
         # Convert to a manifest store
         return ManifestStore(registry=registry, group=manifest_group)
