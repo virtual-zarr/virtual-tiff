@@ -124,8 +124,8 @@ ds = open_virtual_dataset(
 | Tiles | ✅ | |
 | Multiple IFDs | ✅ | |
 | Nested pages / IFDs | ❌ | |
-| Compressions: Uncompressed, PackBits, Zlib, LZMA, Lerc, PNG, Deflate, LZW, JPEG, JPEGXL, JPEG8, WebP | ✅ | |
-| JPEG with quantization tables | ❌ | |
+| Compressions: Uncompressed, PackBits, Zlib, LZMA, Lerc, PNG, Deflate, LZW, JPEGXL, JPEG8, WebP | ✅ | |
+| JPEG | ❌ | Quantization tables (the `JPEGTables` tag) are not yet supported, which excludes nearly all JPEG-encoded TIFFs in practice. |
 | CMYK | ✅ | |
 | YCbCr / CIE L\*a\*b\* / Palette-color | ❌ | |
 | Grayscale, RGB | ✅ | |
