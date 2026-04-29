@@ -32,8 +32,12 @@ import tempfile
 from pathlib import Path
 from urllib.request import Request, urlopen, urlretrieve
 
-GITHUB_API_TARBALL = "https://api.github.com/repos/developmentseed/geotiff-test-data/tarball/max/zstd_level1"
-GITHUB_API_COMMITS = "https://api.github.com/repos/developmentseed/geotiff-test-data/commits/max/zstd_level1"
+GITHUB_API_TARBALL = (
+    "https://api.github.com/repos/developmentseed/geotiff-test-data/tarball/main"
+)
+GITHUB_API_COMMITS = (
+    "https://api.github.com/repos/developmentseed/geotiff-test-data/commits/main"
+)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "tests" / "data"
 GEOTIFF_DIR = DATA_DIR / "geotiff-test-data"
