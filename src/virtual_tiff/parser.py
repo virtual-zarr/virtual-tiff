@@ -25,7 +25,6 @@ from virtual_tiff.constants import COMPRESSORS, GEO_KEYS, SAMPLE_DTYPES
 from virtual_tiff.imagecodecs import FloatPredCodec, ZstdCodec
 from virtual_tiff.utils import (
     check_no_partial_strips,
-    convert_obstore_to_async_tiff_store,
     gdal_metadata_to_dict,
 )
 from virtual_tiff.vendor.xarray.zarr import FillValueCoder
@@ -553,11 +552,10 @@ class VirtualTIFF:
             ms : ManifestStore containing ChunkManifests and Array metadata for the specified IFDs, along with an ObjectStore instance for loading any data.
         """
         store, path_in_store = registry.resolve(url)
-        async_tiff_store = convert_obstore_to_async_tiff_store(store)
         # Create a group containing dataset level metadata and all the manifest arrays
         manifest_group = _construct_manifest_group(
             url,
-            store=async_tiff_store,
+            store=store,
             path=path_in_store,
             ifd=self._ifd,
             ifd_layout=self.ifd_layout,
