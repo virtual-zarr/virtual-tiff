@@ -4,9 +4,7 @@ import xml.etree.ElementTree as ET
 
 
 def gdal_metadata_to_dict(xml_string: str) -> dict[str, str]:
-    """
-    Convert GDAL metadata XML to a dictionary.
-    """
+    """Convert GDAL metadata XML to a dictionary."""
     root = ET.fromstring(xml_string)
     metadata_dict = {}
     for item in root.findall("Item"):

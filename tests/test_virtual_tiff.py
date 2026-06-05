@@ -1,3 +1,5 @@
+import importlib.util
+
 import numpy as np
 import pytest
 import rioxarray
@@ -6,6 +8,8 @@ from obspec_utils.registry import ObjectStoreRegistry
 from obstore.store import LocalStore
 
 from virtual_tiff import VirtualTIFF
+
+HAS_ASYNC_GEOTIFF = importlib.util.find_spec("async_geotiff") is not None
 
 from .conftest import (
     geotiff_test_data_examples,
@@ -119,10 +123,17 @@ def test_geo_key_attributes_are_not_booleans():
     ms = parser(f"file://{filepath}", registry=registry)
     ds = xr.open_dataset(ms, engine="zarr", consolidated=False, zarr_format=3)
     attrs = ds["0"].attrs
-    # geographic_type should be the EPSG code, not True
-    assert attrs["geographic_type"] == 4326
-    assert attrs["model_type"] == 2
-    # model_pixel_scale should be a list of floats, not True
+    if HAS_ASYNC_GEOTIFF:
+        # async-geotiff replaces raw geo keys with crs_wkt/transform
+        assert "EPSG" in attrs["crs_wkt"] and "4326" in attrs["crs_wkt"]
+        assert isinstance(attrs["transform"], list)
+        assert len(attrs["transform"]) == 9
+        assert all(isinstance(v, float) for v in attrs["transform"])
+    else:
+        # geographic_type should be the EPSG code, not True (walrus precedence regression)
+        assert attrs["geographic_type"] == 4326
+        assert attrs["model_type"] == 2
+    # model_pixel_scale should be a list of floats, not True (in both paths)
     assert isinstance(attrs["model_pixel_scale"], list)
     assert attrs["model_pixel_scale"] == [1.0, 1.0, 0.0]
 
