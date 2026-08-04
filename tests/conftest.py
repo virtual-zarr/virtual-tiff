@@ -1,6 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
+import imagecodecs
 import numpy as np
 import pytest
 import rioxarray
@@ -11,6 +12,52 @@ from obstore.store import LocalStore
 from virtual_tiff import VirtualTIFF
 
 requires_network = pytest.mark.network
+
+LZW_CLEAR_CODE = 256
+LZW_EOI_CODE = 257
+
+
+def lzw_encode_literals(
+    data: bytes, *, with_eoi: bool = True, trailing: bytes = b""
+) -> bytes:
+    """Encode ``data`` as a TIFF-LZW stream of 9-bit literal codes.
+
+    A clear code every 200 bytes keeps the dictionary below 512 entries, so every
+    code stays 9 bits wide and the encoder needs no code-width logic.
+    """
+    out = bytearray()
+    acc = nbits = 0
+
+    def write(code: int) -> None:
+        nonlocal acc, nbits
+        acc = (acc << 9) | code
+        nbits += 9
+        while nbits >= 8:
+            nbits -= 8
+            out.append((acc >> nbits) & 0xFF)
+        acc &= (1 << nbits) - 1
+
+    write(LZW_CLEAR_CODE)
+    since_clear = 0
+    for byte in data:
+        if since_clear >= 200:
+            write(LZW_CLEAR_CODE)
+            since_clear = 0
+        write(byte)
+        since_clear += 1
+    if with_eoi:
+        write(LZW_EOI_CODE)
+    if nbits:  # pad the final byte with zero bits
+        out.append((acc << (8 - nbits)) & 0xFF)
+    return bytes(out) + trailing
+
+
+def lzw_unsized_decode_fails(stream: bytes, nbytes: int) -> bool:
+    """Whether imagecodecs mis-decodes ``stream`` when not told the output size."""
+    try:
+        return len(imagecodecs.lzw_decode(stream)) != nbytes
+    except imagecodecs.LzwError:
+        return True
 
 
 # Pytest configuration

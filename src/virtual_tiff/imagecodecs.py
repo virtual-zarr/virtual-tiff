@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import (
@@ -204,6 +205,36 @@ class LercCodec(_ImageCodecsBytesBytesCodec):
 
 class LZWCodec(_ImageCodecsBytesBytesCodec):
     codec_name = "imagecodecs_lzw"
+
+    def _decode(
+        self, chunk_bytes: Buffer, prototype: BufferPrototype, nbytes: int
+    ) -> Buffer:
+        # imagecodecs returns a view of only the bytes it wrote, so a short
+        # result is the only signal that the stream didn't fill the chunk.
+        out = np.zeros(nbytes, dtype=np.uint8)
+        decoded = memoryview(self._codec.decode(chunk_bytes.as_numpy_array(), out=out))
+        if len(decoded) != nbytes:
+            raise ValueError(
+                f"{self.codec_name} decoded {len(decoded)} bytes, expected {nbytes}: "
+                "the compressed stream is truncated or corrupt."
+            )
+        return prototype.buffer.from_bytes(decoded)
+
+    async def _decode_single(
+        self, chunk_bytes: Buffer, chunk_spec: ArraySpec
+    ) -> Buffer:
+        # TIFF requires every LZW strip/tile to end in an End-Of-Information
+        # code, but some writers omit it. Without one, the size pre-scan
+        # imagecodecs runs when it isn't given an output size decodes the
+        # trailing padding as extra codes and either over-estimates or raises
+        # IMCD_LZW_CORRUPT. Passing the size skips the pre-scan, as tifffile
+        # does; the cost is that an over-long stream is silently truncated.
+        nbytes = (
+            math.prod(chunk_spec.shape) * chunk_spec.dtype.to_native_dtype().itemsize
+        )
+        return await asyncio.to_thread(
+            self._decode, chunk_bytes, chunk_spec.prototype, nbytes
+        )
 
 
 class PackBitsCodec(_ImageCodecsBytesBytesCodec):

@@ -30,6 +30,8 @@ from virtual_tiff.parser import (
     _get_compression,
 )
 
+from .conftest import lzw_encode_literals, lzw_unsized_decode_fails
+
 _DEFAULT_CONFIG = ArrayConfig(order="C", write_empty_chunks=True)
 
 
@@ -572,3 +574,56 @@ class TestHorizontalDeltaFloat:
         spec = _make_spec((1, 3), UInt16())
         result = await codec._decode_single(nd_buf, spec)
         np.testing.assert_array_equal(result.as_ndarray_like(), original)
+
+
+class TestLZWWithoutEOI:
+    """TIFF 6.0 requires every LZW strip/tile to end with an End-Of-Information
+    code, but some writers omit it (e.g. GLAD's annual class maps). Decoding into
+    a correctly sized buffer skips the size pre-scan that then misreads the
+    stream's trailing padding.
+    """
+
+    SHAPE = (256, 256)
+    NBYTES = 256 * 256
+
+    @staticmethod
+    def _payload(nbytes: int) -> bytes:
+        return ((np.arange(nbytes) * 7 + 13) % 256).astype(np.uint8).tobytes()
+
+    @staticmethod
+    async def _decode(raw: bytes, spec: ArraySpec) -> bytes:
+        buf = default_buffer_prototype().buffer.from_bytes(raw)
+        decoded = await LZWCodec()._decode_single(buf, spec)
+        return decoded.to_bytes()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "trailing,dtype,itemsize",
+        [
+            # Zero pad bytes decode as phantom codes, so the unsized decode
+            # over-emits; 0xff pad bytes make its pre-scan raise IMCD_LZW_CORRUPT
+            # before any output buffer exists, which is why truncating after the
+            # fact cannot fix those tiles.
+            (b"\x00\x00", UInt8(), 1),
+            (b"\xff\xff", UInt8(), 1),
+            # The size has to account for the dtype's item size, not just the
+            # element count.
+            (b"\x00\x00", UInt16(), 2),
+        ],
+        ids=["zero-pad", "ff-pad", "uint16"],
+    )
+    async def test_missing_eoi_decodes(self, trailing, dtype, itemsize):
+        nbytes = self.NBYTES * itemsize
+        original = self._payload(nbytes)
+        raw = lzw_encode_literals(original, with_eoi=False, trailing=trailing)
+        assert lzw_unsized_decode_fails(raw, nbytes)
+
+        assert await self._decode(raw, _make_spec(self.SHAPE, dtype)) == original
+
+    @pytest.mark.asyncio
+    async def test_truncated_stream_raises(self):
+        """A stream decoding to fewer bytes than the chunk needs must raise rather
+        than return a chunk whose tail is zero padding the file never held."""
+        raw = lzw_encode_literals(self._payload(1000), with_eoi=True)
+        with pytest.raises(ValueError, match="1000 bytes.*expected 65536"):
+            await self._decode(raw, _make_spec(self.SHAPE, UInt8()))
