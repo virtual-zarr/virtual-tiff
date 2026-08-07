@@ -40,6 +40,39 @@ def geotiff_file(tmp_path: Path) -> str:
     return str(filepath)
 
 
+@pytest.fixture
+def chunky_rgb_file(tmp_path: Path) -> str:
+    """Create a tiled, pixel-interleaved (PlanarConfiguration=1) RGB TIFF.
+
+    This exercises the chunky codec path, which needs samples_per_pixel > 1
+    *and* planar_configuration == 1 -- the separate-planes multi-band tests
+    take a different branch.
+    """
+    filepath = tmp_path / "chunky_rgb.tif"
+    rng = np.random.default_rng(0)
+    data = rng.integers(0, 256, size=(3, 64, 64), dtype="uint8")
+    # Real coords, so rioxarray writes a geotransform rather than warning about
+    # falling back to the identity matrix.
+    da = xr.DataArray(
+        data,
+        dims=("band", "y", "x"),
+        coords={
+            "band": [1, 2, 3],
+            "y": 1000.0 - 10.0 * np.arange(64),
+            "x": 500.0 + 10.0 * np.arange(64),
+        },
+    )
+    da.rio.to_raster(
+        filepath,
+        driver="GTiff",
+        INTERLEAVE="PIXEL",
+        TILED="YES",
+        BLOCKXSIZE=16,
+        BLOCKYSIZE=16,
+    )
+    return str(filepath)
+
+
 def resolve_folder(folder: str):
     current_file_path = Path(__file__).resolve()
     repo_root = current_file_path.parent.parent

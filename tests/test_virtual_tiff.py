@@ -39,6 +39,20 @@ def test_simple_load_dataset_against_rioxarray(geotiff_file, mask_and_scale):
     np.testing.assert_allclose(observed.data.squeeze(), expected.data.squeeze())
 
 
+def test_chunky_rgb_load_against_rioxarray(chunky_rgb_file):
+    """Pixel-interleaved multi-band TIFFs go through ChunkyCodec.
+
+    Regression test for the endian handling in that codec, which used to raise
+    on construction rather than produce a manifest.
+    """
+    registry = ObjectStoreRegistry({"file://": LocalStore()})
+    ds = loadable_dataset(f"file://{chunky_rgb_file}", registry=registry)
+    assert isinstance(ds, xr.Dataset)
+    assert ds["0"].sizes["band"] == 3
+    expected = rioxarray.open_rasterio(chunky_rgb_file)
+    np.testing.assert_array_equal(ds["0"].data.squeeze(), expected.data.squeeze())
+
+
 @pytest.mark.parametrize("mask_and_scale", [True, False])
 @pytest.mark.parametrize("filename", github_examples())
 def test_load_dataset_against_rioxarray(filename, mask_and_scale):
