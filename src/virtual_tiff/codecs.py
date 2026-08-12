@@ -29,13 +29,14 @@ def check_codecjson_v2(data: object) -> bool:
 ZarrFormat = Literal[2, 3]
 
 
-def _parse_endian(data: object) -> Endian | None:
+def _parse_endian(data: object) -> str | None:
     if data is None:
         return None
     if isinstance(data, Endian):
-        return data
+        # zarr before 3.3; the 3.3 adapter's member access already returns the string.
+        return data.value
     if isinstance(data, str) and data in ("little", "big"):
-        return Endian(data)
+        return data
     raise ValueError(
         f"Invalid endian value: {data!r}. Expected 'little', 'big', or None."
     )
@@ -45,9 +46,9 @@ def _parse_endian(data: object) -> Endian | None:
 class ChunkyCodec(ArrayBytesCodec):
     is_fixed_size = True
 
-    endian: Endian | None
+    endian: str | None
 
-    def __init__(self, *, endian: Endian | str | None = "little") -> None:
+    def __init__(self, *, endian: str | None = "little") -> None:
         object.__setattr__(self, "endian", _parse_endian(endian))
 
     @classmethod
@@ -86,15 +87,15 @@ class ChunkyCodec(ArrayBytesCodec):
     def to_json(self, zarr_format: ZarrFormat) -> CodecJSON_V2 | CodecJSON_V3:
         if zarr_format == 2:
             if self.endian is not None:
-                return {"id": "ChunkyCodec", "endian": self.endian.value}  # type: ignore[return-value, typeddict-item]
+                return {"id": "ChunkyCodec", "endian": self.endian}  # type: ignore[return-value, typeddict-item]
             return {"id": "ChunkyCodec"}  # type: ignore[return-value]
         elif zarr_format == 3:
             if self.endian is not None:
                 return {
-                    "name": "ChunkyCodec",
-                    "configuration": {"endian": self.endian.value},
+                    "name": "virtual_tiff.ChunkyCodec",
+                    "configuration": {"endian": self.endian},
                 }
-            return {"name": "ChunkyCodec"}
+            return {"name": "virtual_tiff.ChunkyCodec"}
         raise ValueError(
             f"Unsupported Zarr format {zarr_format}. Expected 2 or 3."
         )  # pragma: no cover
@@ -116,7 +117,7 @@ class ChunkyCodec(ArrayBytesCodec):
     ) -> NDBuffer:
         assert isinstance(chunk_bytes, Buffer)
         if chunk_spec.dtype.item_size > 0:
-            if self.endian == Endian.little:
+            if self.endian == "little":
                 prefix = "<"
             else:
                 prefix = ">"
@@ -155,7 +156,7 @@ class ChunkyCodec(ArrayBytesCodec):
         ):
             # type-ignore is a numpy bug
             # see https://github.com/numpy/numpy/issues/26473
-            new_dtype = chunk_array.dtype.newbyteorder(self.endian.name)  # type: ignore[arg-type]
+            new_dtype = chunk_array.dtype.newbyteorder(self.endian)  # type: ignore[arg-type]
             chunk_array = chunk_array.astype(new_dtype)
 
         nd_array = chunk_array.as_ndarray_like()
@@ -206,7 +207,7 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         if zarr_format == 2:
             return {"id": "HorizontalDeltaCodec"}  # type: ignore[return-value]
         elif zarr_format == 3:
-            return {"name": "HorizontalDeltaCodec"}
+            return {"name": "virtual_tiff.HorizontalDeltaCodec"}
         raise ValueError(
             f"Unsupported Zarr format {zarr_format}. Expected 2 or 3."
         )  # pragma: no cover
@@ -248,5 +249,7 @@ class HorizontalDeltaCodec(ArrayArrayCodec):
         return input_byte_length
 
 
-register_codec("ChunkyCodec", ChunkyCodec)
-register_codec("HorizontalDeltaCodec", HorizontalDeltaCodec)
+# The names the `zarr.codecs` entry points publish, so readers that never import this package
+# still resolve the codecs.
+register_codec("virtual_tiff.ChunkyCodec", ChunkyCodec)
+register_codec("virtual_tiff.HorizontalDeltaCodec", HorizontalDeltaCodec)
